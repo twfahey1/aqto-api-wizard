@@ -78,15 +78,27 @@ final class ConfigController extends AbstractController
 
         $saveAuthProfile = (bool)$request->request->get('saveAuthProfile', false);
         $authProfileName = trim((string)$request->request->get('authProfileName', ''));
+        $oauthTokenUrl = trim((string)$request->request->get('oauthTokenUrl', ''));
+        $oauthRefreshUrl = trim((string)$request->request->get('oauthRefreshUrl', ''));
 
         if ($saveAuthProfile && $authProfileName !== '' && count($headers) > 0) {
             $profileId = 'auth_'.Uuid::v4()->toRfc4122();
+
+            $oauth = null;
+            if ($oauthTokenUrl !== '' || $oauthRefreshUrl !== '') {
+                $oauth = array_filter([
+                    'tokenUrl' => $oauthTokenUrl !== '' ? $oauthTokenUrl : null,
+                    'refreshUrl' => $oauthRefreshUrl !== '' ? $oauthRefreshUrl : null,
+                ], static fn ($v) => $v !== null);
+            }
+
             $collection['authProfiles'] = array_values(array_merge(
                 (array)($collection['authProfiles'] ?? []),
                 [[
                     'id' => $profileId,
                     'name' => $authProfileName,
                     'headers' => $headers,
+                    'oauth' => $oauth,
                 ]]
             ));
             $authProfileId = $profileId;

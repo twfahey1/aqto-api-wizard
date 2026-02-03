@@ -29,6 +29,34 @@ final class ConfigMigrator
             $version = 2;
         }
 
+        if ($version === 2 && SchemaVersion::LATEST >= 3) {
+            $collection = $this->migrateV2ToV3($collection);
+            $version = 3;
+        }
+
+        return $collection;
+    }
+
+    /**
+     * @param array<string, mixed> $collection
+     * @return array<string, mixed>
+     */
+    private function migrateV2ToV3(array $collection): array
+    {
+        $collection['schemaVersion'] = 3;
+
+        $profiles = (array)($collection['authProfiles'] ?? []);
+        foreach ($profiles as $i => $profile) {
+            if (!is_array($profile)) {
+                continue;
+            }
+
+            // No-op migration; oauth metadata is optional.
+            $profiles[$i] = $profile;
+        }
+
+        $collection['authProfiles'] = $profiles;
+
         return $collection;
     }
 

@@ -1,0 +1,54 @@
+<div class="p-4" x-data="{ tokenBodyMode: 'form' }">
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h3 class="text-base font-medium">Fetch OAuth token</h3>
+            <p class="text-sm text-slate-600">POST to your token endpoint and fill the Bearer token field.</p>
+        </div>
+        <button type="button" class="text-sm text-slate-600 hover:text-slate-900" @click="oauthModalOpen = false">Close</button>
+    </div>
+
+    <form
+        class="mt-4 space-y-4"
+        hx-post="{{ path('oauth_fetch_token') }}"
+        hx-target="#oauthResult"
+        hx-swap="innerHTML"
+    >
+        <div>
+            <label class="block text-sm font-medium">Token URL</label>
+            <input name="tokenUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token" required>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium">Refresh URL (optional)</label>
+            <input name="refreshUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token">
+            <div class="mt-1 text-xs text-slate-600">Stored on the auth profile if you choose to save it.</div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium">Payload type</label>
+            <select name="tokenBodyMode" class="mt-1 w-full rounded border px-3 py-2 text-sm" x-model="tokenBodyMode">
+                <option value="form">Form (key=value)</option>
+                <option value="json">JSON</option>
+            </select>
+        </div>
+
+        <div x-show="tokenBodyMode === 'form'" x-cloak>
+            <label class="block text-sm font-medium">Form payload</label>
+            <textarea name="tokenBodyForm" rows="6" class="mt-1 w-full rounded border px-3 py-2 text-sm font-mono" placeholder="grant_type=client_credentials\nclient_id=...\nclient_secret=...\nscope=..."></textarea>
+            <div class="mt-1 text-xs text-slate-600">Tip: client_secret stays in this request only (not stored).</div>
+        </div>
+
+        <div x-show="tokenBodyMode === 'json'" x-cloak>
+            <label class="block text-sm font-medium">JSON payload</label>
+            <textarea name="tokenBodyJson" rows="6" class="mt-1 w-full rounded border px-3 py-2 text-sm font-mono" placeholder='{"grant_type":"client_credentials","client_id":"...","client_secret":"..."}'></textarea>
+            <div class="mt-1 text-xs text-slate-600">Tip: client_secret stays in this request only (not stored).</div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2">
+            <button type="button" class="px-3 py-2 text-sm rounded border bg-white hover:bg-slate-50" @click="oauthModalOpen = false">Close</button>
+            <button class="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700" type="submit">Fetch token</button>
+        </div>
+
+        <div id="oauthResult"></div>
+    </form>
+</div>

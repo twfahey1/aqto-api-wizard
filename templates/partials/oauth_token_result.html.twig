@@ -1,0 +1,9 @@
+<div class="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+    <div class="font-medium">Token fetched.</div>
+    <div class="mt-1 text-xs text-emerald-900/80">Status: {{ status }}</div>
+</div>
+
+<details class="mt-2">
+    <summary class="text-sm cursor-pointer">Show response</summary>
+    <pre class="mt-2 text-xs overflow-auto bg-white border rounded p-2"><code class="language-json">{{ decoded|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+</details>
