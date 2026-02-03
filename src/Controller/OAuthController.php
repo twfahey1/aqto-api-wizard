@@ -24,9 +24,9 @@ final class OAuthController extends AbstractController
         $bodyMode = (string)$request->request->get('tokenBodyMode', 'form');
 
         if ($tokenUrl === '') {
-            return $this->render('partials/oauth_token_error.html.twig', [
-                'message' => 'Token URL is required.',
-            ], new Response('', 400));
+            return $this->renderOAuthError('Token URL is required.', [
+                'bodyMode' => $bodyMode,
+            ]);
         }
 
         $options = [
@@ -39,19 +39,27 @@ final class OAuthController extends AbstractController
             $rawJson = (string)$request->request->get('tokenBodyJson', '');
             $decoded = json_decode($rawJson, true);
             if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
-                return $this->render('partials/oauth_token_error.html.twig', [
-                    'message' => 'Token payload JSON is invalid: '.json_last_error_msg(),
-                ], new Response('', 400));
+                return $this->renderOAuthError('Token payload JSON is invalid: '.json_last_error_msg(), [
+                    'bodyMode' => $bodyMode,
+                ]);
             }
             $options['json'] = $decoded ?? (object)[];
         } else {
-            $keys = $request->request->get('tokenBodyFormKeys', []);
-            $values = $request->request->get('tokenBodyFormValues', []);
+            // These fields are named tokenBodyFormKeys[] / tokenBodyFormValues[].
+            // IMPORTANT: InputBag::get() throws BadRequestHttpException when the value is an array.
+            $post = $request->request->all();
+            $keys = $post['tokenBodyFormKeys'] ?? [];
+            $values = $post['tokenBodyFormValues'] ?? [];
+
+            if (!is_array($keys)) {
+                $keys = [];
+            }
+            if (!is_array($values)) {
+                $values = [];
+            }
 
             $fields = [];
-            if (is_array($keys) && is_array($values)) {
-                $fields = $this->parseKeyValueFields($keys, $values);
-            }
+            $fields = $this->parseKeyValueFields($keys, $values);
 
             if ($fields === []) {
                 // Backwards compatibility: accept textarea format.
@@ -60,9 +68,9 @@ final class OAuthController extends AbstractController
             }
 
             if ($fields === []) {
-                return $this->render('partials/oauth_token_error.html.twig', [
-                    'message' => 'Token payload (form) is empty.',
-                ], new Response('', 400));
+                return $this->renderOAuthError('Token payload (form) is empty.', [
+                    'bodyMode' => $bodyMode,
+                ]);
             }
             $options['body'] = $fields;
             $options['headers']['Content-Type'] = 'application/x-www-form-urlencoded';
@@ -75,13 +83,11 @@ final class OAuthController extends AbstractController
 
             $decoded = json_decode($body, true);
             if (!is_array($decoded)) {
-                return $this->render('partials/oauth_token_error.html.twig', [
-                    'message' => 'Token endpoint did not return JSON.',
-                    'details' => [
-                        'status' => $status,
-                        'body' => $body,
-                    ],
-                ], new Response('', 422));
+                return $this->renderOAuthError('Token endpoint did not return JSON.', [
+                    'status' => $status,
+                    'tokenUrl' => $tokenUrl,
+                    'bodySnippet' => $this->truncateForDisplay($body),
+                ]);
             }
 
             $accessToken = (string)($decoded['access_token'] ?? '');
@@ -90,10 +96,11 @@ final class OAuthController extends AbstractController
             $expiresIn = $decoded['expires_in'] ?? null;
 
             if ($accessToken === '') {
-                return $this->render('partials/oauth_token_error.html.twig', [
-                    'message' => 'No access_token found in response.',
-                    'details' => $decoded,
-                ], new Response('', 422));
+                return $this->renderOAuthError('No access_token found in response.', [
+                    'status' => $status,
+                    'tokenUrl' => $tokenUrl,
+                    'response' => $this->redactForDiagnostics($decoded),
+                ]);
             }
 
             $triggerPayload = [
@@ -111,6 +118,8 @@ final class OAuthController extends AbstractController
                 'decoded' => $decoded,
             ]);
 
+            $response->headers->set('Cache-Control', 'no-store');
+
             // HTMX: trigger a client-side event containing the token.
             $response->headers->set('HX-Trigger', json_encode([
                 'oauthTokenReceived' => $triggerPayload,
@@ -118,10 +127,72 @@ final class OAuthController extends AbstractController
 
             return $response;
         } catch (\Throwable $e) {
-            return $this->render('partials/oauth_token_error.html.twig', [
-                'message' => 'Token fetch failed: '.$e->getMessage(),
-            ], new Response('', 422));
+            return $this->renderOAuthError('Token fetch failed.', [
+                'tokenUrl' => $tokenUrl,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
         }
+    }
+
+    /**
+     * Always return a 200 so HTMX swaps the fragment into the modal.
+     *
+     * @param array<string, mixed> $details
+     */
+    private function renderOAuthError(string $message, array $details = []): Response
+    {
+        $response = $this->render('partials/oauth_token_error.html.twig', [
+            'message' => $message,
+            'details' => $details === [] ? null : $details,
+        ]);
+
+        $response->headers->set('Cache-Control', 'no-store');
+        $response->headers->set('HX-Trigger', json_encode([
+            'oauthTokenError' => [
+                'message' => $message,
+            ],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        return $response;
+    }
+
+    private function truncateForDisplay(string $raw, int $maxBytes = 2000): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+
+        if (strlen($raw) <= $maxBytes) {
+            return $raw;
+        }
+
+        return substr($raw, 0, $maxBytes)."\n…(truncated)…";
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function redactForDiagnostics(array $data): array
+    {
+        $redacted = [];
+        foreach ($data as $key => $value) {
+            $keyStr = strtolower((string)$key);
+            $isSensitive = str_contains($keyStr, 'secret')
+                || str_contains($keyStr, 'password')
+                || str_contains($keyStr, 'token');
+
+            if ($isSensitive) {
+                $redacted[$key] = is_string($value) && $value !== '' ? '***redacted***' : $value;
+                continue;
+            }
+
+            $redacted[$key] = $value;
+        }
+
+        return $redacted;
     }
 
     /**
