@@ -1,0 +1,11 @@
+<div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+    <div class="font-medium">Token fetch error</div>
+    <div class="mt-1">{{ message }}</div>
+
+    {% if details is defined and details is not empty %}
+        <details class="mt-2">
+            <summary class="text-sm cursor-pointer">Show details</summary>
+            <pre class="mt-2 text-xs overflow-auto bg-white border rounded p-2"><code class="language-json">{{ details|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+        </details>
+    {% endif %}
+</div>

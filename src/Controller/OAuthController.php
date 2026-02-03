@@ -24,7 +24,9 @@ final class OAuthController extends AbstractController
         $bodyMode = (string)$request->request->get('tokenBodyMode', 'form');
 
         if ($tokenUrl === '') {
-            return new Response('Token URL is required.', 400);
+            return $this->render('partials/oauth_token_error.html.twig', [
+                'message' => 'Token URL is required.',
+            ], new Response('', 400));
         }
 
         $options = [
@@ -37,14 +39,30 @@ final class OAuthController extends AbstractController
             $rawJson = (string)$request->request->get('tokenBodyJson', '');
             $decoded = json_decode($rawJson, true);
             if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
-                return new Response('Token payload JSON is invalid: '.json_last_error_msg(), 400);
+                return $this->render('partials/oauth_token_error.html.twig', [
+                    'message' => 'Token payload JSON is invalid: '.json_last_error_msg(),
+                ], new Response('', 400));
             }
             $options['json'] = $decoded ?? (object)[];
         } else {
-            $raw = (string)$request->request->get('tokenBodyForm', '');
-            $fields = $this->parseKeyValueLines($raw);
+            $keys = $request->request->get('tokenBodyFormKeys', []);
+            $values = $request->request->get('tokenBodyFormValues', []);
+
+            $fields = [];
+            if (is_array($keys) && is_array($values)) {
+                $fields = $this->parseKeyValueFields($keys, $values);
+            }
+
             if ($fields === []) {
-                return new Response('Token payload (form) is empty.', 400);
+                // Backwards compatibility: accept textarea format.
+                $raw = (string)$request->request->get('tokenBodyForm', '');
+                $fields = $this->parseKeyValueLines($raw);
+            }
+
+            if ($fields === []) {
+                return $this->render('partials/oauth_token_error.html.twig', [
+                    'message' => 'Token payload (form) is empty.',
+                ], new Response('', 400));
             }
             $options['body'] = $fields;
             $options['headers']['Content-Type'] = 'application/x-www-form-urlencoded';
@@ -57,7 +75,13 @@ final class OAuthController extends AbstractController
 
             $decoded = json_decode($body, true);
             if (!is_array($decoded)) {
-                return new Response('Token endpoint did not return JSON.', 422);
+                return $this->render('partials/oauth_token_error.html.twig', [
+                    'message' => 'Token endpoint did not return JSON.',
+                    'details' => [
+                        'status' => $status,
+                        'body' => $body,
+                    ],
+                ], new Response('', 422));
             }
 
             $accessToken = (string)($decoded['access_token'] ?? '');
@@ -66,7 +90,10 @@ final class OAuthController extends AbstractController
             $expiresIn = $decoded['expires_in'] ?? null;
 
             if ($accessToken === '') {
-                return new Response('No access_token found in response.', 422);
+                return $this->render('partials/oauth_token_error.html.twig', [
+                    'message' => 'No access_token found in response.',
+                    'details' => $decoded,
+                ], new Response('', 422));
             }
 
             $triggerPayload = [
@@ -91,8 +118,35 @@ final class OAuthController extends AbstractController
 
             return $response;
         } catch (\Throwable $e) {
-            return new Response('Token fetch failed: '.$e->getMessage(), 422);
+            return $this->render('partials/oauth_token_error.html.twig', [
+                'message' => 'Token fetch failed: '.$e->getMessage(),
+            ], new Response('', 422));
         }
+    }
+
+    /**
+     * @param array<int, mixed> $keys
+     * @param array<int, mixed> $values
+     * @return array<string, string>
+     */
+    private function parseKeyValueFields(array $keys, array $values): array
+    {
+        $pairs = [];
+        $count = max(count($keys), count($values));
+
+        for ($i = 0; $i < $count; $i++) {
+            $key = trim((string)($keys[$i] ?? ''));
+            $val = (string)($values[$i] ?? '');
+            $val = trim($val);
+
+            if ($key === '') {
+                continue;
+            }
+
+            $pairs[$key] = $val;
+        }
+
+        return $pairs;
     }
 
     /**
