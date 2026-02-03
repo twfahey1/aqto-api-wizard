@@ -39,7 +39,7 @@ final class ExecuteController extends AbstractController
             return new Response('Config not found.', 404);
         }
 
-        $result = $executor->execute($config);
+        $result = $executor->execute($config, (array)($collection['authProfiles'] ?? []));
 
         $formatted = $formatter->format($result['body'], $result['contentType']);
 

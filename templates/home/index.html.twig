@@ -30,7 +30,29 @@
                 <div class="bg-white rounded-lg border shadow-sm">
                     <div class="p-4 border-b flex items-center justify-between">
                         <h2 class="font-medium">Configs</h2>
-                        <div class="flex items-center gap-3" x-data="{ exportModalOpen: false }">
+                        <div class="flex items-center gap-3" x-data="{ exportModalOpen: false, createModalOpen: false }">
+                            <button
+                                type="button"
+                                class="text-sm text-blue-600 hover:underline"
+                                @click="createModalOpen = true"
+                                hx-get="{{ path('configs_new') }}"
+                                hx-target="#createModalBody"
+                                hx-swap="innerHTML"
+                            >
+                                Create
+                            </button>
+
+                            <div
+                                x-show="createModalOpen"
+                                x-cloak
+                                class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                            >
+                                <div class="absolute inset-0 bg-black/40" @click="createModalOpen = false"></div>
+                                <div class="relative w-full max-w-2xl rounded-lg bg-white border shadow-lg">
+                                    <div id="createModalBody">Loading…</div>
+                                </div>
+                            </div>
+
                             <button
                                 type="button"
                                 class="text-sm text-blue-600 hover:underline"
@@ -69,18 +91,9 @@
                             <div id="importResult" class="mt-2"></div>
                         </div>
 
-                        {% if collection.configs is empty %}
-                            <div class="text-sm text-slate-600">No configs yet. Import one, or create one (next).</div>
-                        {% else %}
-                            <ul class="space-y-2">
-                                {% for cfg in collection.configs %}
-                                    <li class="p-2 rounded border bg-slate-50">
-                                        <div class="font-medium text-sm">{{ cfg.name }}</div>
-                                        <div class="text-xs text-slate-600">{{ cfg.request.method }} {{ cfg.request.url }}</div>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
+                        <div id="configList">
+                            {{ include('partials/config_list.html.twig', { collection: collection }) }}
+                        </div>
                     </div>
                 </div>
             </section>
@@ -92,27 +105,6 @@
                         <div class="text-sm text-slate-600">Select a config and run it (MVP uses the first config).</div>
                     </div>
                     <div class="p-4">
-                        {% set first = collection.configs|first %}
-                        {% if first %}
-                            <form
-                                class="flex items-center justify-between gap-3 mb-3"
-                                hx-post="{{ path('execute') }}"
-                                hx-target="#executeResult"
-                                hx-swap="innerHTML"
-                            >
-                                <input type="hidden" name="configId" value="{{ first.id }}">
-                                <div class="text-sm text-slate-700 truncate">
-                                    <span class="font-medium">{{ first.name }}</span>
-                                    <span class="text-slate-600">• {{ first.request.method }} {{ first.request.url }}</span>
-                                </div>
-                                <button class="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700" type="submit">
-                                    Execute
-                                </button>
-                            </form>
-                        {% else %}
-                            <div class="text-sm text-slate-600">Import a config to enable execution.</div>
-                        {% endif %}
-
                         <div id="executeResult" class="mt-2">
                             <pre class="text-xs overflow-auto"><code class="language-json">{ "ready": true }</code></pre>
                         </div>

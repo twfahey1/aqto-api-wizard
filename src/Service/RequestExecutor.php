@@ -13,14 +13,15 @@ final class RequestExecutor
 
     /**
      * @param array<string, mixed> $config
+     * @param array<int, array<string, mixed>> $authProfiles
      * @return array{status:int|null, headers:array<string, array<int, string>>, contentType:string|null, body:string, error:string|null}
      */
-    public function execute(array $config): array
+    public function execute(array $config, array $authProfiles = []): array
     {
         $request = (array)($config['request'] ?? []);
 
         $method = strtoupper((string)($request['method'] ?? 'GET'));
-        $url = (string)($request['url'] ?? '');
+        $url = $this->resolveUrl($request);
 
         if ($url === '') {
             return [
@@ -32,7 +33,7 @@ final class RequestExecutor
             ];
         }
 
-        $headers = $this->buildHeaders($request);
+        $headers = $this->buildHeaders($request, $authProfiles);
         $query = $this->buildQuery($request);
 
         $options = [
@@ -43,7 +44,31 @@ final class RequestExecutor
         $body = (array)($request['body'] ?? []);
         $mode = (string)($body['mode'] ?? 'none');
 
-        if ($mode === 'raw') {
+        if ($mode === 'json') {
+            $rawJson = (string)($body['json'] ?? '');
+            $decoded = json_decode($rawJson, true);
+
+            if ($rawJson !== '' && ($decoded === null && json_last_error() !== JSON_ERROR_NONE)) {
+                throw new \RuntimeException('JSON body is not valid JSON: '.json_last_error_msg());
+            }
+
+            $options['json'] = $decoded ?? (object)[];
+        } elseif ($mode === 'form') {
+            $fields = [];
+            foreach ((array)($body['form'] ?? []) as $pair) {
+                if (!is_array($pair)) {
+                    continue;
+                }
+                $key = trim((string)($pair['name'] ?? ''));
+                if ($key === '') {
+                    continue;
+                }
+                $fields[$key] = (string)($pair['value'] ?? '');
+            }
+
+            $options['body'] = $fields;
+            $options['headers']['Content-Type'] = 'application/x-www-form-urlencoded';
+        } elseif ($mode === 'raw') {
             $content = (string)($body['content'] ?? '');
             $options['body'] = $content;
 
@@ -80,32 +105,77 @@ final class RequestExecutor
 
     /**
      * @param array<string, mixed> $request
+     * @param array<int, array<string, mixed>> $authProfiles
      * @return array<string, string>
      */
-    private function buildHeaders(array $request): array
+    private function buildHeaders(array $request, array $authProfiles): array
     {
         $headers = [];
+
+        $authProfileId = trim((string)($request['authProfileId'] ?? ''));
+        if ($authProfileId !== '') {
+            foreach ($authProfiles as $profile) {
+                if (!is_array($profile) || (string)($profile['id'] ?? '') !== $authProfileId) {
+                    continue;
+                }
+                foreach ((array)($profile['headers'] ?? []) as $header) {
+                    $this->applyHeader($headers, $header);
+                }
+                break;
+            }
+        }
+
         foreach ((array)($request['headers'] ?? []) as $header) {
-            if (!is_array($header)) {
-                continue;
-            }
-
-            $name = trim((string)($header['name'] ?? ''));
-            $value = $header['value'] ?? null;
-            $value = is_string($value) ? $value : (is_null($value) ? '' : (string)$value);
-
-            if ($name === '') {
-                continue;
-            }
-
-            if (($header['isSecret'] ?? false) && $this->isPlaceholderSecret($value)) {
-                throw new \RuntimeException(sprintf('Missing secret for header "%s".', $name));
-            }
-
-            $headers[$name] = $value;
+            $this->applyHeader($headers, $header);
         }
 
         return $headers;
+    }
+
+    /**
+     * @param array<string, string> $headers
+     * @param mixed $header
+     */
+    private function applyHeader(array &$headers, mixed $header): void
+    {
+        if (!is_array($header)) {
+            return;
+        }
+
+        $name = trim((string)($header['name'] ?? ''));
+        $value = $header['value'] ?? null;
+        $value = is_string($value) ? $value : (is_null($value) ? '' : (string)$value);
+
+        if ($name === '') {
+            return;
+        }
+
+        if (($header['isSecret'] ?? false) && $this->isPlaceholderSecret($value)) {
+            throw new \RuntimeException(sprintf('Missing secret for header "%s".', $name));
+        }
+
+        $headers[$name] = $value;
+    }
+
+    /**
+     * @param array<string, mixed> $request
+     */
+    private function resolveUrl(array $request): string
+    {
+        if (isset($request['urls']) && is_array($request['urls'])) {
+            $urls = (array)$request['urls'];
+            $env = (string)($request['activeEnv'] ?? 'dev');
+            $env = in_array($env, ['dev', 'live'], true) ? $env : 'dev';
+
+            $selected = (string)($urls[$env] ?? '');
+            if ($selected !== '') {
+                return $selected;
+            }
+
+            return (string)($urls['dev'] ?? '');
+        }
+
+        return (string)($request['url'] ?? '');
     }
 
     /**

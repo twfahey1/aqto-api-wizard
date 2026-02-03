@@ -20,6 +20,31 @@ final class ImportExportController extends AbstractController
         $collection = $store->loadCollection();
 
         $secrets = [];
+
+        foreach (($collection['authProfiles'] ?? []) as $profileIndex => $profile) {
+            if (!is_array($profile)) {
+                continue;
+            }
+            foreach (($profile['headers'] ?? []) as $headerIndex => $header) {
+                if (!is_array($header) || !($header['isSecret'] ?? false)) {
+                    continue;
+                }
+
+                $secretRef = (string)($header['secretRef'] ?? '');
+                if ($secretRef === '') {
+                    $secretRef = sprintf('auth.%s.header.%s', $profile['id'] ?? $profileIndex, $header['name'] ?? $headerIndex);
+                }
+
+                $secrets[] = [
+                    'configName' => 'Auth: '.($profile['name'] ?? '(unnamed)'),
+                    'headerName' => $header['name'] ?? '(header)',
+                    'secretKind' => $header['secretKind'] ?? 'custom',
+                    'secretRef' => $secretRef,
+                    'hasValue' => (string)($header['value'] ?? '') !== '',
+                ];
+            }
+        }
+
         foreach (($collection['configs'] ?? []) as $configIndex => $config) {
             foreach (($config['request']['headers'] ?? []) as $headerIndex => $header) {
                 if (!is_array($header)) {
@@ -174,6 +199,30 @@ final class ImportExportController extends AbstractController
     private function applyExportSecretsPolicy(array $collection, array $includeSecretRefs): array
     {
         $include = array_fill_keys($includeSecretRefs, true);
+
+        foreach (($collection['authProfiles'] ?? []) as $profileIndex => $profile) {
+            if (!is_array($profile)) {
+                continue;
+            }
+
+            foreach (($profile['headers'] ?? []) as $headerIndex => $header) {
+                if (!is_array($header) || !($header['isSecret'] ?? false)) {
+                    continue;
+                }
+
+                $secretRef = (string)($header['secretRef'] ?? '');
+                if ($secretRef === '') {
+                    $secretRef = sprintf('auth.%s.header.%s', $profile['id'] ?? $profileIndex, $header['name'] ?? $headerIndex);
+                }
+
+                if (!isset($include[$secretRef])) {
+                    $placeholder = (string)($header['placeholder'] ?? sprintf('{{AQTO_SECRET:%s}}', $secretRef));
+                    $header['value'] = $placeholder;
+                }
+
+                $collection['authProfiles'][$profileIndex]['headers'][$headerIndex] = $header;
+            }
+        }
 
         foreach (($collection['configs'] ?? []) as $configIndex => $config) {
             if (!is_array($config)) {

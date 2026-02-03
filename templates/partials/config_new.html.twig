@@ -1,0 +1,129 @@
+<div class="p-4" x-data="{ authType: 'none', saveAuth: false, bodyMode: 'none' }">
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h3 class="text-base font-medium">Create config</h3>
+            <p class="text-sm text-slate-600">Dev/Live URLs, optional reusable auth, JSON or form bodies.</p>
+        </div>
+        <button type="button" class="text-sm text-slate-600 hover:text-slate-900" @click="createModalOpen = false">Close</button>
+    </div>
+
+    <form
+        class="mt-4 space-y-4"
+        hx-post="{{ path('configs_create') }}"
+        hx-target="#configList"
+        hx-swap="innerHTML"
+        @htmx:afterRequest.window="if ($event.detail.successful) { createModalOpen = false; }"
+    >
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+                <label class="block text-sm font-medium">Name</label>
+                <input name="name" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="My API request" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium">Method</label>
+                <select name="method" class="mt-1 w-full rounded border px-3 py-2 text-sm">
+                    {% for m in ['GET','POST','PUT','PATCH','DELETE'] %}
+                        <option value="{{ m }}">{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+                <label class="block text-sm font-medium">Dev URL</label>
+                <input name="urlDev" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://dev.api.com/v1/resource" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium">Live URL</label>
+                <input name="urlLive" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://api.com/v1/resource" required>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium">Default environment</label>
+            <select name="activeEnv" class="mt-1 w-full rounded border px-3 py-2 text-sm">
+                <option value="dev">dev</option>
+                <option value="live">live</option>
+            </select>
+        </div>
+
+        <div class="rounded border p-3 bg-slate-50">
+            <div class="text-sm font-medium">Auth</div>
+            <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm">Reuse saved auth profile</label>
+                    <select name="authProfileId" class="mt-1 w-full rounded border px-3 py-2 text-sm">
+                        <option value="">(none)</option>
+                        {% for p in authProfiles %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="mt-1 text-xs text-slate-600">If set, inline auth below is ignored.</div>
+                </div>
+
+                <div>
+                    <label class="block text-sm">Inline auth</label>
+                    <select name="authType" class="mt-1 w-full rounded border px-3 py-2 text-sm" x-model="authType">
+                        <option value="none">None</option>
+                        <option value="bearer">Bearer token</option>
+                        <option value="apiKey">API key header</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-3" x-show="authType === 'bearer'" x-cloak>
+                <label class="block text-sm">Bearer token</label>
+                <input name="bearerToken" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="Paste token (optional; can be left blank and filled later)">
+            </div>
+
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3" x-show="authType === 'apiKey'" x-cloak>
+                <div>
+                    <label class="block text-sm">Header name</label>
+                    <input name="apiKeyHeader" class="mt-1 w-full rounded border px-3 py-2 text-sm" value="X-API-Key">
+                </div>
+                <div>
+                    <label class="block text-sm">Header value</label>
+                    <input name="apiKeyValue" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="(optional; can be left blank and filled later)">
+                </div>
+            </div>
+
+            <div class="mt-3 flex items-center gap-2">
+                <input id="saveAuthProfile" type="checkbox" name="saveAuthProfile" value="1" x-model="saveAuth">
+                <label for="saveAuthProfile" class="text-sm">Save inline auth as reusable profile</label>
+            </div>
+            <div class="mt-2" x-show="saveAuth" x-cloak>
+                <label class="block text-sm">Auth profile name</label>
+                <input name="authProfileName" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="My Auth">
+            </div>
+        </div>
+
+        <div class="rounded border p-3 bg-slate-50">
+            <div class="text-sm font-medium">Body</div>
+            <div class="mt-2">
+                <select name="bodyMode" class="w-full rounded border px-3 py-2 text-sm" x-model="bodyMode">
+                    <option value="none">None</option>
+                    <option value="json">JSON</option>
+                    <option value="form">Form URL Encoded</option>
+                </select>
+            </div>
+
+            <div class="mt-3" x-show="bodyMode === 'json'" x-cloak>
+                <label class="block text-sm">JSON payload</label>
+                <textarea name="jsonBody" rows="6" class="mt-1 w-full rounded border px-3 py-2 text-sm font-mono" placeholder='{"hello":"world"}'></textarea>
+                <div class="mt-1 text-xs text-slate-600">Stored as text; sent as application/json.</div>
+            </div>
+
+            <div class="mt-3" x-show="bodyMode === 'form'" x-cloak>
+                <label class="block text-sm">Form fields (one per line: key=value)</label>
+                <textarea name="formBody" rows="6" class="mt-1 w-full rounded border px-3 py-2 text-sm font-mono" placeholder="foo=bar\ncount=1"></textarea>
+                <div class="mt-1 text-xs text-slate-600">Sent as application/x-www-form-urlencoded.</div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2">
+            <button type="button" class="px-3 py-2 text-sm rounded border bg-white hover:bg-slate-50" @click="createModalOpen = false">Cancel</button>
+            <button class="px-3 py-2 text-sm rounded bg-slate-900 text-white hover:bg-slate-800" type="submit">Create</button>
+        </div>
+    </form>
+</div>

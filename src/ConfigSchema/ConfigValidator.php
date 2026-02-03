@@ -20,7 +20,11 @@ final class ConfigValidator
      */
     public function assertValidLatest(array $collection): void
     {
-        $schemaPath = sprintf('%s/schemas/api-config/v1/config.schema.json', rtrim($this->projectDir, '/'));
+        $schemaPath = sprintf(
+            '%s/schemas/api-config/v%d/config.schema.json',
+            rtrim($this->projectDir, '/'),
+            SchemaVersion::LATEST,
+        );
 
         try {
             $schemaJson = file_get_contents($schemaPath);

@@ -4,7 +4,7 @@ namespace App\ConfigSchema;
 
 final class SchemaVersion
 {
-    public const LATEST = 1;
+    public const LATEST = 2;
 
     private function __construct()
     {
