@@ -1,13 +1,15 @@
 <div
     class="p-4"
     x-data="{
-        authType: 'none',
+        authType: '{{ authType|default('none') }}',
         saveAuth: false,
-        bodyMode: 'none',
-        activeEnv: 'dev',
-        bearerToken: '',
-        oauthTokenUrl: '',
-        oauthRefreshUrl: '',
+        bodyMode: '{{ bodyMode|default('none') }}',
+        activeEnv: '{{ activeEnv|default('dev') }}',
+        bearerToken: '{{ bearerToken|default('') }}',
+        apiKeyHeader: '{{ apiKeyHeader|default('X-API-Key') }}',
+        apiKeyValue: '{{ apiKeyValue|default('') }}',
+        oauthTokenUrl: '{{ oauthTokenUrl|default('') }}',
+        oauthRefreshUrl: '{{ oauthRefreshUrl|default('') }}',
         oauthModalOpen: false,
     }"
     @oauth-token-received.window="
@@ -19,34 +21,36 @@
         activeEnv = $event.detail.applyEnv || activeEnv;
         oauthModalOpen = false;
     "
-    @config-created.document="configModalOpen = false"
 >
     <div class="flex items-start justify-between gap-4">
         <div>
-            <h3 class="text-base font-medium">Create config</h3>
-            <p class="text-sm text-slate-600">Dev/Live URLs, optional reusable auth, JSON or form bodies.</p>
+            <h3 class="text-base font-medium">Edit config</h3>
+            <p class="text-sm text-slate-600">Update request settings, URLs, auth, and body.</p>
         </div>
         <button type="button" class="text-sm text-slate-600 hover:text-slate-900" @click="configModalOpen = false">Close</button>
     </div>
 
     <form
         class="mt-4 space-y-4"
-        hx-post="{{ path('configs_create') }}"
+        hx-post="{{ path('configs_update', {id: config.id}) }}"
         hx-target="#configList"
         hx-swap="innerHTML"
     >
         <input type="hidden" name="oauthTokenUrl" :value="oauthTokenUrl">
         <input type="hidden" name="oauthRefreshUrl" :value="oauthRefreshUrl">
+
+        <div id="configEditErrors"></div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
                 <label class="block text-sm font-medium">Name</label>
-                <input name="name" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="My API request" required>
+                <input name="name" class="mt-1 w-full rounded border px-3 py-2 text-sm" value="{{ config.name }}" required>
             </div>
             <div>
                 <label class="block text-sm font-medium">Method</label>
                 <select name="method" class="mt-1 w-full rounded border px-3 py-2 text-sm">
                     {% for m in ['GET','POST','PUT','PATCH','DELETE'] %}
-                        <option value="{{ m }}">{{ m }}</option>
+                        <option value="{{ m }}" {{ config.request.method == m ? 'selected' : '' }}>{{ m }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -55,15 +59,13 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
                 <label class="block text-sm font-medium">Dev URL</label>
-                <input name="urlDev" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://dev.api.com/v1/resource">
+                <input name="urlDev" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://dev.api.com/v1/resource" value="{{ config.request.urls.dev ?? '' }}">
             </div>
             <div>
                 <label class="block text-sm font-medium">Live URL</label>
-                <input name="urlLive" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://api.com/v1/resource">
+                <input name="urlLive" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://api.com/v1/resource" value="{{ config.request.urls.live ?? '' }}">
             </div>
         </div>
-
-        <div id="createConfigErrors"></div>
 
         <div>
             <label class="block text-sm font-medium">Default environment</label>
@@ -82,7 +84,7 @@
                     <select name="authProfileId" class="mt-1 w-full rounded border px-3 py-2 text-sm">
                         <option value="">(none)</option>
                         {% for p in authProfiles %}
-                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            <option value="{{ p.id }}" {{ (config.request.authProfileId ?? '') == p.id ? 'selected' : '' }}>{{ p.name }}</option>
                         {% endfor %}
                     </select>
                     <div class="mt-1 text-xs text-slate-600">If set, inline auth below is ignored.</div>
@@ -140,17 +142,17 @@
             <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3" x-show="authType === 'apiKey'" x-cloak>
                 <div>
                     <label class="block text-sm">Header name</label>
-                    <input name="apiKeyHeader" class="mt-1 w-full rounded border px-3 py-2 text-sm" value="X-API-Key">
+                    <input name="apiKeyHeader" class="mt-1 w-full rounded border px-3 py-2 text-sm" x-model="apiKeyHeader">
                 </div>
                 <div>
                     <label class="block text-sm">Header value</label>
-                    <input name="apiKeyValue" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="(optional; can be left blank and filled later)">
+                    <input name="apiKeyValue" class="mt-1 w-full rounded border px-3 py-2 text-sm" x-model="apiKeyValue" placeholder="(optional; can be left blank and filled later)">
                 </div>
             </div>
 
             <div class="mt-3 flex items-center gap-2">
-                <input id="saveAuthProfile" type="checkbox" name="saveAuthProfile" value="1" x-model="saveAuth">
-                <label for="saveAuthProfile" class="text-sm">Save inline auth as reusable profile</label>
+                <input id="saveAuthProfileEdit" type="checkbox" name="saveAuthProfile" value="1" x-model="saveAuth">
+                <label for="saveAuthProfileEdit" class="text-sm">Save inline auth as reusable profile</label>
             </div>
             <div class="mt-2" x-show="saveAuth" x-cloak>
                 <label class="block text-sm">Auth profile name</label>
@@ -170,20 +172,20 @@
 
             <div class="mt-3" x-show="bodyMode === 'json'" x-cloak>
                 <label class="block text-sm">JSON payload</label>
-                <textarea name="jsonBody" rows="6" class="mt-1 w-full rounded border px-3 py-2 text-sm font-mono" placeholder='{"hello":"world"}'></textarea>
+                <textarea name="jsonBody" rows="6" class="mt-1 w-full rounded border px-3 py-2 text-sm font-mono">{{ jsonBody|default('') }}</textarea>
                 <div class="mt-1 text-xs text-slate-600">Stored as text; sent as application/json.</div>
             </div>
 
             <div class="mt-3" x-show="bodyMode === 'form'" x-cloak>
                 <label class="block text-sm">Form fields (one per line: key=value)</label>
-                <textarea name="formBody" rows="6" class="mt-1 w-full rounded border px-3 py-2 text-sm font-mono" placeholder="foo=bar\ncount=1"></textarea>
+                <textarea name="formBody" rows="6" class="mt-1 w-full rounded border px-3 py-2 text-sm font-mono">{{ formBody|default('') }}</textarea>
                 <div class="mt-1 text-xs text-slate-600">Sent as application/x-www-form-urlencoded.</div>
             </div>
         </div>
 
         <div class="flex items-center justify-end gap-2">
             <button type="button" class="px-3 py-2 text-sm rounded border bg-white hover:bg-slate-50" @click="configModalOpen = false">Cancel</button>
-            <button class="px-3 py-2 text-sm rounded bg-slate-900 text-white hover:bg-slate-800" type="submit">Create</button>
+            <button class="px-3 py-2 text-sm rounded bg-slate-900 text-white hover:bg-slate-800" type="submit">Save</button>
         </div>
     </form>
 </div>

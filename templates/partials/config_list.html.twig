@@ -24,6 +24,38 @@
                     </form>
 
                     <div class="flex items-center gap-1">
+                        <button
+                            type="button"
+                            class="p-1 rounded border bg-white hover:bg-slate-100"
+                            title="Edit"
+                            hx-get="{{ path('configs_edit', {id: cfg.id}) }}"
+                            hx-target="#configModalBody"
+                            hx-swap="innerHTML"
+                            hx-on:htmx:beforeRequest="document.getElementById('configModalBody').innerHTML = 'Loading…'; document.dispatchEvent(new CustomEvent('config-modal-open'))"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a1 1 0 01-.293.207l-3 1.2a1 1 0 01-1.313-1.313l1.2-3a1 1 0 01.207-.293l8.5-8.5z" />
+                                <path d="M11.379 5.793L14.207 8.62" />
+                            </svg>
+                        </button>
+
+                        <form
+                            hx-post="{{ path('configs_delete', {id: cfg.id}) }}"
+                            hx-target="#configList"
+                            hx-swap="innerHTML"
+                            hx-confirm="Delete this config?"
+                        >
+                            <button
+                                type="submit"
+                                class="p-1 rounded border bg-white hover:bg-red-50 hover:border-red-200 text-red-700"
+                                title="Delete"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                    <path fill-rule="evenodd" d="M8.5 2a1 1 0 00-1 1v1H5a1 1 0 000 2h.293l.854 11.11A2 2 0 008.14 19h3.72a2 2 0 001.993-1.89L14.707 6H15a1 1 0 100-2h-2.5V3a1 1 0 00-1-1h-3zM9.5 4V3h1v1h-1z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </form>
+
                         <form
                             hx-post="{{ path('configs_set_env', {id: cfg.id}) }}"
                             hx-target="#configList"
