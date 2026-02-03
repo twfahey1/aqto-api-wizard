@@ -6,6 +6,7 @@
         bodyMode: 'none',
         activeEnv: 'dev',
         bearerToken: '',
+        refreshToken: '',
         oauthTokenUrl: '',
         oauthRefreshUrl: '',
         oauthModalOpen: false,
@@ -14,8 +15,16 @@
         bearerToken = ($event.detail.tokenType === 'bearer' || !$event.detail.tokenType)
             ? $event.detail.accessToken
             : $event.detail.accessToken;
-        oauthTokenUrl = $event.detail.tokenUrl || oauthTokenUrl;
-        oauthRefreshUrl = $event.detail.refreshUrl || oauthRefreshUrl;
+        refreshToken = $event.detail.refreshToken || refreshToken;
+
+        // Avoid clobbering oauthTokenUrl when the modal was used in refresh mode.
+        if (($event.detail.mode || 'fetch') !== 'refresh') {
+            oauthTokenUrl = $event.detail.tokenUrl || oauthTokenUrl;
+            oauthRefreshUrl = $event.detail.refreshUrl || oauthRefreshUrl;
+        } else {
+            oauthRefreshUrl = $event.detail.tokenUrl || $event.detail.refreshUrl || oauthRefreshUrl;
+            oauthTokenUrl = oauthTokenUrl || $event.detail.refreshUrl || '';
+        }
         activeEnv = $event.detail.applyEnv || activeEnv;
         oauthModalOpen = false;
     "
@@ -105,17 +114,38 @@
                         <input name="bearerToken" x-model="bearerToken" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="Paste token, or fetch via OAuth">
                         <div class="mt-1 text-xs text-slate-600">Stored as an Authorization header on the auth profile/request.</div>
                     </div>
-                    <button
-                        type="button"
-                        class="px-3 py-2 text-sm rounded border bg-white hover:bg-slate-100"
-                        @click="oauthModalOpen = true"
-                        hx-get="{{ path('oauth_token_modal') }}"
-                        :hx-vals="JSON.stringify({ applyEnv: activeEnv })"
-                        hx-target="#oauthModalBody"
-                        hx-swap="innerHTML"
-                    >
-                        Fetch token…
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button
+                            type="button"
+                            class="px-3 py-2 text-sm rounded border bg-white hover:bg-slate-100"
+                            @click="oauthModalOpen = true"
+                            hx-get="{{ path('oauth_token_modal') }}"
+                            :hx-vals="JSON.stringify({ applyEnv: activeEnv, mode: 'fetch', tokenUrl: oauthTokenUrl, refreshUrl: oauthRefreshUrl })"
+                            hx-target="#oauthModalBody"
+                            hx-swap="innerHTML"
+                        >
+                            Fetch token…
+                        </button>
+
+                        <button
+                            type="button"
+                            class="px-3 py-2 text-sm rounded border bg-white hover:bg-slate-100"
+                            x-show="oauthTokenUrl || oauthRefreshUrl || refreshToken"
+                            x-cloak
+                            @click="oauthModalOpen = true"
+                            hx-get="{{ path('oauth_token_modal') }}"
+                            :hx-vals="JSON.stringify({ applyEnv: activeEnv, mode: 'refresh', tokenUrl: (oauthRefreshUrl || oauthTokenUrl), refreshUrl: oauthRefreshUrl, refreshToken: refreshToken })"
+                            hx-target="#oauthModalBody"
+                            hx-swap="innerHTML"
+                        >
+                            Refresh token…
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-2" x-show="refreshToken" x-cloak>
+                    <label class="block text-xs text-slate-600">Refresh token (kept in-memory)</label>
+                    <input type="text" x-model="refreshToken" class="mt-1 w-full rounded border px-3 py-2 text-xs font-mono" placeholder="(optional)" />
                 </div>
 
                 <div class="mt-2 text-xs text-slate-600" x-show="oauthTokenUrl">

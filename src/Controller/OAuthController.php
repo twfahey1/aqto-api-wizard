@@ -18,14 +18,32 @@ final class OAuthController extends AbstractController
             $applyEnv = 'dev';
         }
 
+        $mode = (string)$request->query->get('mode', 'fetch');
+        if (!in_array($mode, ['fetch', 'refresh'], true)) {
+            $mode = 'fetch';
+        }
+
+        $tokenUrl = trim((string)$request->query->get('tokenUrl', ''));
+        $refreshUrl = trim((string)$request->query->get('refreshUrl', ''));
+        $refreshToken = trim((string)$request->query->get('refreshToken', ''));
+
         return $this->render('partials/oauth_token_modal.html.twig', [
             'applyEnv' => $applyEnv,
+            'mode' => $mode,
+            'tokenUrl' => $tokenUrl,
+            'refreshUrl' => $refreshUrl,
+            'refreshToken' => $refreshToken,
         ]);
     }
 
     #[Route('/oauth/fetch-token', name: 'oauth_fetch_token', methods: ['POST'])]
     public function fetchToken(Request $request, HttpClientInterface $httpClient): Response
     {
+        $mode = (string)$request->request->get('mode', 'fetch');
+        if (!in_array($mode, ['fetch', 'refresh'], true)) {
+            $mode = 'fetch';
+        }
+
         $tokenUrl = trim((string)$request->request->get('tokenUrl', ''));
         $refreshUrl = trim((string)$request->request->get('refreshUrl', ''));
         $bodyMode = (string)$request->request->get('tokenBodyMode', 'form');
@@ -37,6 +55,7 @@ final class OAuthController extends AbstractController
         if ($tokenUrl === '') {
             return $this->renderOAuthError('Token URL is required.', [
                 'bodyMode' => $bodyMode,
+                'mode' => $mode,
             ]);
         }
 
@@ -52,6 +71,7 @@ final class OAuthController extends AbstractController
             if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
                 return $this->renderOAuthError('Token payload JSON is invalid: '.json_last_error_msg(), [
                     'bodyMode' => $bodyMode,
+                    'mode' => $mode,
                 ]);
             }
             $options['json'] = $decoded ?? (object)[];
@@ -81,6 +101,7 @@ final class OAuthController extends AbstractController
             if ($fields === []) {
                 return $this->renderOAuthError('Token payload (form) is empty.', [
                     'bodyMode' => $bodyMode,
+                    'mode' => $mode,
                 ]);
             }
             $options['body'] = $fields;
@@ -98,6 +119,7 @@ final class OAuthController extends AbstractController
                     'status' => $status,
                     'tokenUrl' => $tokenUrl,
                     'bodySnippet' => $this->truncateForDisplay($body),
+                    'mode' => $mode,
                 ]);
             }
 
@@ -111,6 +133,7 @@ final class OAuthController extends AbstractController
                     'status' => $status,
                     'tokenUrl' => $tokenUrl,
                     'response' => $this->redactForDiagnostics($decoded),
+                    'mode' => $mode,
                 ]);
             }
 
@@ -123,11 +146,13 @@ final class OAuthController extends AbstractController
                 'refreshUrl' => $refreshUrl,
                 'status' => $status,
                 'applyEnv' => $applyEnv,
+                'mode' => $mode,
             ];
 
             $response = $this->render('partials/oauth_token_result.html.twig', [
                 'status' => $status,
                 'decoded' => $decoded,
+                'mode' => $mode,
             ]);
 
             $response->headers->set('Cache-Control', 'no-store');
@@ -143,6 +168,7 @@ final class OAuthController extends AbstractController
                 'tokenUrl' => $tokenUrl,
                 'exception' => get_class($e),
                 'message' => $e->getMessage(),
+                'mode' => $mode,
             ]);
         }
     }

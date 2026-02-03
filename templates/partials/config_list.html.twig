@@ -31,7 +31,7 @@
                             hx-get="{{ path('configs_edit', {id: cfg.id}) }}"
                             hx-target="#configModalBody"
                             hx-swap="innerHTML"
-                            hx-on:htmx:beforeRequest="document.getElementById('configModalBody').innerHTML = 'Loading…'; document.dispatchEvent(new CustomEvent('config-modal-open'))"
+                            onclick="var el=document.getElementById('configModalBody'); if(el){el.innerHTML='Loading…';} document.dispatchEvent(new CustomEvent('config-modal-open'));"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                                 <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a1 1 0 01-.293.207l-3 1.2a1 1 0 01-1.313-1.313l1.2-3a1 1 0 01.207-.293l8.5-8.5z" />

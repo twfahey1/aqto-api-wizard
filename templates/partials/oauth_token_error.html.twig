@@ -1,5 +1,6 @@
 <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-    <div class="font-medium">Token fetch error</div>
+    {% set _mode = (details.mode ?? 'fetch') %}
+    <div class="font-medium">{{ _mode == 'refresh' ? 'Token refresh failed' : 'Token fetch error' }}</div>
     <div class="mt-1">{{ message }}</div>
 
     {% if details is defined and details is not empty %}

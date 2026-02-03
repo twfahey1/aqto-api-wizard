@@ -1,18 +1,27 @@
+{% set _mode = mode|default('fetch') %}
 <div class="p-4" x-data="{
     tokenBodyMode: 'form',
     applyEnv: '{{ applyEnv|default('dev') }}',
-    rows: [
-        { key: 'grant_type', value: 'client_credentials' },
-        { key: 'client_id', value: '' },
-        { key: 'client_secret', value: '' },
-    ],
+    mode: '{{ _mode }}',
+    rows: {{ (_mode == 'refresh'
+        ? [
+            { key: 'grant_type', value: 'refresh_token' },
+            { key: 'refresh_token', value: refreshToken|default('') },
+            { key: 'client_id', value: '' },
+            { key: 'client_secret', value: '' },
+        ]
+        : [
+            { key: 'grant_type', value: 'client_credentials' },
+            { key: 'client_id', value: '' },
+            { key: 'client_secret', value: '' },
+        ])|json_encode|raw }},
     addRow() { this.rows.push({ key: '', value: '' }); },
     removeRow(i) { if (this.rows.length <= 1) return; this.rows.splice(i, 1); },
 }">
     <div class="flex items-start justify-between gap-4">
         <div>
-            <h3 class="text-base font-medium">Fetch OAuth token</h3>
-            <p class="text-sm text-slate-600">POST to your token endpoint and fill the Bearer token field.</p>
+            <h3 class="text-base font-medium" x-text="mode === 'refresh' ? 'Refresh OAuth token' : 'Fetch OAuth token'"></h3>
+            <p class="text-sm text-slate-600" x-text="mode === 'refresh' ? 'POST to refresh your access token.' : 'POST to your token endpoint and fill the Bearer token field.'"></p>
         </div>
         <button type="button" class="text-sm text-slate-600 hover:text-slate-900" @click="oauthModalOpen = false">Close</button>
     </div>
@@ -23,14 +32,15 @@
         hx-target="#oauthResult"
         hx-swap="innerHTML"
     >
+        <input type="hidden" name="mode" :value="mode">
         <div>
             <label class="block text-sm font-medium">Token URL</label>
-            <input name="tokenUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token" required>
+            <input name="tokenUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token" value="{{ tokenUrl|default('') }}" required>
         </div>
 
         <div>
             <label class="block text-sm font-medium">Refresh URL (optional)</label>
-            <input name="refreshUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token">
+            <input name="refreshUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token" value="{{ refreshUrl|default('') }}">
             <div class="mt-1 text-xs text-slate-600">Stored on the auth profile if you choose to save it.</div>
         </div>
 
@@ -102,7 +112,7 @@
 
         <div class="flex items-center justify-end gap-2">
             <button type="button" class="px-3 py-2 text-sm rounded border bg-white hover:bg-slate-50" @click="oauthModalOpen = false">Close</button>
-            <button class="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700" type="submit">Fetch token</button>
+            <button class="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700" type="submit" x-text="mode === 'refresh' ? 'Refresh token' : 'Fetch token'"></button>
         </div>
 
         <div id="oauthResult"></div>

@@ -64,6 +64,21 @@ final class ConfigController extends AbstractController
 
         [$authType, $bearerToken, $apiKeyHeader, $apiKeyValue] = $this->detectInlineAuthDefaults($config);
 
+        $oauthTokenUrl = '';
+        $oauthRefreshUrl = '';
+        $authProfileId = (string)($request['authProfileId'] ?? '');
+        if ($authProfileId !== '') {
+            foreach ((array)($collection['authProfiles'] ?? []) as $p) {
+                if (!is_array($p) || (string)($p['id'] ?? '') !== $authProfileId) {
+                    continue;
+                }
+                $oauth = (array)($p['oauth'] ?? []);
+                $oauthTokenUrl = trim((string)($oauth['tokenUrl'] ?? ''));
+                $oauthRefreshUrl = trim((string)($oauth['refreshUrl'] ?? ''));
+                break;
+            }
+        }
+
         return $this->render('partials/config_edit.html.twig', [
             'config' => $config,
             'authProfiles' => (array)($collection['authProfiles'] ?? []),
@@ -75,6 +90,8 @@ final class ConfigController extends AbstractController
             'bearerToken' => $bearerToken,
             'apiKeyHeader' => $apiKeyHeader,
             'apiKeyValue' => $apiKeyValue,
+            'oauthTokenUrl' => $oauthTokenUrl,
+            'oauthRefreshUrl' => $oauthRefreshUrl,
         ]);
     }
 

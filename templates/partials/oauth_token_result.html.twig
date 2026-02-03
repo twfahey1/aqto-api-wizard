@@ -1,5 +1,5 @@
 <div class="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-    <div class="font-medium">Token fetched.</div>
+    <div class="font-medium">{{ (mode|default('fetch')) == 'refresh' ? 'Refresh success.' : 'Token fetched.' }}</div>
     <div class="mt-1 text-xs text-emerald-900/80">Status: {{ status }}</div>
 </div>
 
