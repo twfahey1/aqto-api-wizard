@@ -167,12 +167,18 @@ final class RequestExecutor
             $env = (string)($request['activeEnv'] ?? 'dev');
             $env = in_array($env, ['dev', 'live'], true) ? $env : 'dev';
 
-            $selected = (string)($urls[$env] ?? '');
+            $selected = trim((string)($urls[$env] ?? ''));
             if ($selected !== '') {
                 return $selected;
             }
 
-            return (string)($urls['dev'] ?? '');
+            $otherEnv = $env === 'dev' ? 'live' : 'dev';
+            $fallback = trim((string)($urls[$otherEnv] ?? ''));
+            if ($fallback !== '') {
+                return $fallback;
+            }
+
+            return '';
         }
 
         return (string)($request['url'] ?? '');

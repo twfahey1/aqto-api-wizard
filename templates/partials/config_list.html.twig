@@ -15,7 +15,7 @@
                         <div class="font-medium text-sm truncate">{{ cfg.name }}</div>
                         <div class="text-xs text-slate-600 truncate">
                             {{ cfg.request.method }}
-                            {% set url = cfg.request.urls[cfg.request.activeEnv] ?? cfg.request.urls.dev %}
+                            {% set url = cfg.request.urls[cfg.request.activeEnv] ?? cfg.request.urls.dev ?? cfg.request.urls.live ?? '' %}
                             {{ url }}
                             <span class="ml-1">({{ cfg.request.activeEnv }})</span>
                         </div>

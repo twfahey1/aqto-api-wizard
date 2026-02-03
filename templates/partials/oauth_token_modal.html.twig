@@ -1,5 +1,6 @@
 <div class="p-4" x-data="{
     tokenBodyMode: 'form',
+    applyEnv: '{{ applyEnv|default('dev') }}',
     rows: [
         { key: 'grant_type', value: 'client_credentials' },
         { key: 'client_id', value: '' },
@@ -39,6 +40,15 @@
                 <option value="form">Form (key=value)</option>
                 <option value="json">JSON</option>
             </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium">Apply token to environment</label>
+            <select name="applyEnv" class="mt-1 w-full rounded border px-3 py-2 text-sm" x-model="applyEnv">
+                <option value="dev">dev</option>
+                <option value="live">live</option>
+            </select>
+            <div class="mt-1 text-xs text-slate-600">On success, this will also set the config’s default environment.</div>
         </div>
 
         <div x-show="tokenBodyMode === 'form'" x-cloak>

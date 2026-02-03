@@ -11,9 +11,16 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final class OAuthController extends AbstractController
 {
     #[Route('/oauth/token-modal', name: 'oauth_token_modal', methods: ['GET'])]
-    public function tokenModal(): Response
+    public function tokenModal(Request $request): Response
     {
-        return $this->render('partials/oauth_token_modal.html.twig');
+        $applyEnv = (string)$request->query->get('applyEnv', 'dev');
+        if (!in_array($applyEnv, ['dev', 'live'], true)) {
+            $applyEnv = 'dev';
+        }
+
+        return $this->render('partials/oauth_token_modal.html.twig', [
+            'applyEnv' => $applyEnv,
+        ]);
     }
 
     #[Route('/oauth/fetch-token', name: 'oauth_fetch_token', methods: ['POST'])]
@@ -22,6 +29,10 @@ final class OAuthController extends AbstractController
         $tokenUrl = trim((string)$request->request->get('tokenUrl', ''));
         $refreshUrl = trim((string)$request->request->get('refreshUrl', ''));
         $bodyMode = (string)$request->request->get('tokenBodyMode', 'form');
+        $applyEnv = (string)$request->request->get('applyEnv', 'dev');
+        if (!in_array($applyEnv, ['dev', 'live'], true)) {
+            $applyEnv = 'dev';
+        }
 
         if ($tokenUrl === '') {
             return $this->renderOAuthError('Token URL is required.', [
@@ -111,6 +122,7 @@ final class OAuthController extends AbstractController
                 'tokenUrl' => $tokenUrl,
                 'refreshUrl' => $refreshUrl,
                 'status' => $status,
+                'applyEnv' => $applyEnv,
             ];
 
             $response = $this->render('partials/oauth_token_result.html.twig', [

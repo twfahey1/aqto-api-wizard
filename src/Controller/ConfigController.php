@@ -32,11 +32,23 @@ final class ConfigController extends AbstractController
         $urlLive = trim((string)$request->request->get('urlLive', ''));
         $activeEnv = (string)$request->request->get('activeEnv', 'dev');
 
-        if ($name === '' || $urlDev === '' || $urlLive === '') {
-            return new Response('Missing required fields.', 400);
+        if ($name === '') {
+            return $this->renderCreateConfigError('Name is required.');
+        }
+
+        if ($urlDev === '' && $urlLive === '') {
+            return $this->renderCreateConfigError('Provide at least one URL (dev or live).');
         }
 
         if (!in_array($activeEnv, ['dev', 'live'], true)) {
+            $activeEnv = 'dev';
+        }
+
+        // If the chosen environment has no URL, fall back to the other available one.
+        if ($activeEnv === 'dev' && $urlDev === '' && $urlLive !== '') {
+            $activeEnv = 'live';
+        }
+        if ($activeEnv === 'live' && $urlLive === '' && $urlDev !== '') {
             $activeEnv = 'dev';
         }
 
@@ -98,7 +110,7 @@ final class ConfigController extends AbstractController
                     'id' => $profileId,
                     'name' => $authProfileName,
                     'headers' => $headers,
-                    'oauth' => $oauth,
+                    ...($oauth !== null ? ['oauth' => $oauth] : []),
                 ]]
             ));
             $authProfileId = $profileId;
@@ -130,8 +142,9 @@ final class ConfigController extends AbstractController
             'request' => [
                 'method' => $method,
                 'urls' => [
-                    'dev' => $urlDev,
-                    'live' => $urlLive,
+                    // dev/live are optional; omit empty values.
+                    ...($urlDev !== '' ? ['dev' => $urlDev] : []),
+                    ...($urlLive !== '' ? ['live' => $urlLive] : []),
                 ],
                 'activeEnv' => $activeEnv,
                 'authProfileId' => $authProfileId,
@@ -144,9 +157,32 @@ final class ConfigController extends AbstractController
         $collection['configs'] = array_values(array_merge((array)($collection['configs'] ?? []), [$config]));
         $store->saveCollection($collection);
 
-        return $this->render('partials/config_list.html.twig', [
+        $response = $this->render('partials/config_list.html.twig', [
             'collection' => $collection,
         ]);
+
+        $response->headers->set('HX-Trigger', json_encode([
+            'configCreated' => [
+                'id' => (string)$config['id'],
+                'name' => $name,
+            ],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        return $response;
+    }
+
+    private function renderCreateConfigError(string $message): Response
+    {
+        $response = $this->render('partials/config_new_error.html.twig', [
+            'message' => $message,
+        ]);
+
+        // Keep the config list intact; show the error in the modal.
+        $response->headers->set('HX-Retarget', '#createConfigErrors');
+        $response->headers->set('HX-Reswap', 'innerHTML');
+        $response->headers->set('Cache-Control', 'no-store');
+
+        return $response;
     }
 
     #[Route('/configs/{id}/env', name: 'configs_set_env', methods: ['POST'])]
@@ -163,6 +199,16 @@ final class ConfigController extends AbstractController
         foreach ($configs as $i => $cfg) {
             if (!is_array($cfg) || (string)($cfg['id'] ?? '') !== $id) {
                 continue;
+            }
+
+            $urls = (array)($cfg['request']['urls'] ?? []);
+            $selectedUrl = trim((string)($urls[$env] ?? ''));
+            if ($selectedUrl === '') {
+                $otherEnv = $env === 'dev' ? 'live' : 'dev';
+                $otherUrl = trim((string)($urls[$otherEnv] ?? ''));
+                if ($otherUrl !== '') {
+                    $env = $otherEnv;
+                }
             }
 
             $cfg['request']['activeEnv'] = $env;

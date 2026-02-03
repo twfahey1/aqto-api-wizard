@@ -34,6 +34,39 @@ final class ConfigMigrator
             $version = 3;
         }
 
+        if ($version === 3 && SchemaVersion::LATEST >= 4) {
+            $collection = $this->migrateV3ToV4($collection);
+            $version = 4;
+        }
+
+        return $collection;
+    }
+
+    /**
+     * @param array<string, mixed> $collection
+     * @return array<string, mixed>
+     */
+    private function migrateV3ToV4(array $collection): array
+    {
+        $collection['schemaVersion'] = 4;
+
+        // v4 relaxes urls.{dev,live} to be optional (at least one required).
+        // Existing v3 collections are already compatible.
+
+        $profiles = (array)($collection['authProfiles'] ?? []);
+        foreach ($profiles as $i => $profile) {
+            if (!is_array($profile)) {
+                continue;
+            }
+
+            if (array_key_exists('oauth', $profile) && $profile['oauth'] === null) {
+                unset($profile['oauth']);
+            }
+
+            $profiles[$i] = $profile;
+        }
+        $collection['authProfiles'] = $profiles;
+
         return $collection;
     }
 
