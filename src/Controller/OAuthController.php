@@ -134,7 +134,7 @@ final class OAuthController extends AbstractController
 
             // HTMX: trigger a client-side event containing the token.
             $response->headers->set('HX-Trigger', json_encode([
-                'oauthTokenReceived' => $triggerPayload,
+                'oauth-token-received' => $triggerPayload,
             ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
             return $response;
@@ -161,7 +161,7 @@ final class OAuthController extends AbstractController
 
         $response->headers->set('Cache-Control', 'no-store');
         $response->headers->set('HX-Trigger', json_encode([
-            'oauthTokenError' => [
+            'oauth-token-error' => [
                 'message' => $message,
             ],
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));

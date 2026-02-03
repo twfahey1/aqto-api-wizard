@@ -10,7 +10,7 @@
         oauthRefreshUrl: '',
         oauthModalOpen: false,
     }"
-    @oauthTokenReceived.window="
+    @oauth-token-received.window="
         bearerToken = ($event.detail.tokenType === 'bearer' || !$event.detail.tokenType)
             ? $event.detail.accessToken
             : $event.detail.accessToken;
@@ -19,7 +19,7 @@
         activeEnv = $event.detail.applyEnv || activeEnv;
         oauthModalOpen = false;
     "
-    @configCreated.window="createModalOpen = false"
+    @config-created.document="createModalOpen = false"
 >
     <div class="flex items-start justify-between gap-4">
         <div>

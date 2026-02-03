@@ -162,7 +162,7 @@ final class ConfigController extends AbstractController
         ]);
 
         $response->headers->set('HX-Trigger', json_encode([
-            'configCreated' => [
+            'config-created' => [
                 'id' => (string)$config['id'],
                 'name' => $name,
             ],

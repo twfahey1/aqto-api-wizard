@@ -4,15 +4,15 @@
 
 {% block stylesheets %}
     <link rel="stylesheet" href="/build/app.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-rV5q2G9By06SnVAk0nnBYnOVrlaR271GGBqBPdZiZsaAJ+lZeXqIuAvV38DSHLVQQP4SRrped1IovnHgwlHGaw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" referrerpolicy="no-referrer" />
 {% endblock %}
 
 {% block javascripts %}
     <script src="/build/app.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-0n3+WJpN96CBvs1+FiSVqS+8CA0nVddOZXS6jttuPAHyBs+K6TfGsDz3jAC5vVsQt1zAr72Xd1Lr1xL8a6Y6Cw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js" integrity="sha512-kK+J4ew3Efr2E1VlzDq+W8sELpAo0P5NdVs4KJIp4jOSAmhpN6wX+ZspGDZCBoBPuiGNsq4CPGK/cHBX9nuq2g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-xml-doc.min.js" integrity="sha512-HK+N55O4u5asJ5AZt0pOEtpJR/YWZLxE+nobVhtSGcVwqDAVBBusZT6F4LmSpaV0t1Ik5+pUvNbK/CtYQgQkiQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js" integrity="sha512-+kM4Z5qX6Ch12yvDqOiiMHDL/95B2S/bRMyCV2wE8p8nH3UX0YPD6/COM24kTx5cDIeEJD7BqXc9E+u6KDAdcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-xml-doc.min.js" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js" referrerpolicy="no-referrer"></script>
 {% endblock %}
 
 {% block body %}
@@ -30,7 +30,7 @@
                 <div class="bg-white rounded-lg border shadow-sm">
                     <div class="p-4 border-b flex items-center justify-between">
                         <h2 class="font-medium">Configs</h2>
-                        <div class="flex items-center gap-3" x-data="{ exportModalOpen: false, createModalOpen: false }">
+                        <div class="flex items-center gap-3" x-data="{ exportModalOpen: false, createModalOpen: false }" @config-created.document="createModalOpen = false">
                             <button
                                 type="button"
                                 class="text-sm text-blue-600 hover:underline"

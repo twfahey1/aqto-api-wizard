@@ -5,21 +5,23 @@
         {% for cfg in collection.configs %}
             <li class="p-2 rounded border bg-slate-50">
                 <div class="flex items-start justify-between gap-3">
-                    <button
-                        class="text-left min-w-0"
+                    <form
+                        class="min-w-0"
                         hx-post="{{ path('execute') }}"
                         hx-target="#executeResult"
                         hx-swap="innerHTML"
                     >
                         <input type="hidden" name="configId" value="{{ cfg.id }}">
-                        <div class="font-medium text-sm truncate">{{ cfg.name }}</div>
-                        <div class="text-xs text-slate-600 truncate">
-                            {{ cfg.request.method }}
-                            {% set url = cfg.request.urls[cfg.request.activeEnv] ?? cfg.request.urls.dev ?? cfg.request.urls.live ?? '' %}
-                            {{ url }}
-                            <span class="ml-1">({{ cfg.request.activeEnv }})</span>
-                        </div>
-                    </button>
+                        <button class="text-left w-full" type="submit">
+                            <div class="font-medium text-sm truncate">{{ cfg.name }}</div>
+                            <div class="text-xs text-slate-600 truncate">
+                                {{ cfg.request.method }}
+                                {% set url = cfg.request.urls[cfg.request.activeEnv] ?? cfg.request.urls.dev ?? cfg.request.urls.live ?? '' %}
+                                {{ url }}
+                                <span class="ml-1">({{ cfg.request.activeEnv }})</span>
+                            </div>
+                        </button>
+                    </form>
 
                     <div class="flex items-center gap-1">
                         <form
