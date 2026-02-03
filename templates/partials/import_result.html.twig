@@ -1,0 +1,17 @@
+<div class="rounded border p-3 {{ importedCount > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-slate-50 border-slate-200 text-slate-800' }}">
+    {% if importedCount > 0 %}
+        <div class="text-sm font-medium">Imported {{ importedCount }} config{{ importedCount == 1 ? '' : 's' }}.</div>
+    {% else %}
+        <div class="text-sm font-medium">Import failed.</div>
+        {% if errorMessage is defined %}
+            <div class="text-sm mt-1">{{ errorMessage }}</div>
+        {% endif %}
+
+        {% if errors is defined and errors is not empty %}
+            <details class="mt-2">
+                <summary class="text-sm cursor-pointer">Show validation details</summary>
+                <pre class="mt-2 text-xs overflow-auto bg-white border rounded p-2"><code class="language-json">{{ errors|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+            </details>
+        {% endif %}
+    {% endif %}
+</div>

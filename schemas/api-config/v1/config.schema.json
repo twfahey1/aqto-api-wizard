@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aqto.local/schemas/api-config/v1/config.schema.json",
+  "title": "Aqto API Wizard Config Collection (v1)",
+  "type": "object",
+  "required": ["schemaVersion", "configs"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "configs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/config" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nameValuePair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "value": { "type": ["string", "number", "boolean", "null"] }
+      }
+    },
+    "secretKind": {
+      "type": "string",
+      "enum": ["bearer", "apiKey", "custom"]
+    },
+    "exportPolicy": {
+      "type": "string",
+      "enum": ["prompt", "never", "always"]
+    },
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "value": { "type": ["string", "null"] },
+        "isSecret": { "type": "boolean", "default": false },
+        "secretKind": { "$ref": "#/$defs/secretKind" },
+        "secretRef": { "type": "string" },
+        "exportPolicy": { "$ref": "#/$defs/exportPolicy", "default": "prompt" },
+        "placeholder": { "type": "string", "default": "{{AQTO_SECRET:ref}}" }
+      }
+    },
+    "body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["none", "raw"]
+        },
+        "contentType": { "type": "string" },
+        "content": { "type": "string" }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "url"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+        },
+        "url": { "$ref": "#/$defs/nonEmptyString" },
+        "headers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/header" },
+          "default": []
+        },
+        "query": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nameValuePair" },
+          "default": []
+        },
+        "body": { "$ref": "#/$defs/body" }
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "request"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "default": []
+        },
+        "request": { "$ref": "#/$defs/request" }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+<div class="space-y-3">
+    {% if result.error %}
+        <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+            {{ result.error }}
+        </div>
+    {% else %}
+        <div class="flex items-center justify-between gap-4">
+            <div class="text-sm">
+                <span class="font-medium">Status:</span> {{ result.status }}
+                {% if result.contentType %}<span class="text-slate-600">• {{ result.contentType }}</span>{% endif %}
+            </div>
+        </div>
+
+        {% set lang = formatted.detectedType == 'json' ? 'json' : (formatted.detectedType == 'xml' ? 'xml' : (formatted.detectedType == 'html' ? 'markup' : 'none')) %}
+        <pre class="text-xs overflow-auto"><code class="language-{{ lang }}">{{ formatted.pretty }}</code></pre>
+    {% endif %}
+</div>

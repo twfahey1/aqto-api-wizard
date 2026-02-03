@@ -1,0 +1,125 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Aqto API Wizard{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="/build/app.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" integrity="sha512-rV5q2G9By06SnVAk0nnBYnOVrlaR271GGBqBPdZiZsaAJ+lZeXqIuAvV38DSHLVQQP4SRrped1IovnHgwlHGaw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+{% endblock %}
+
+{% block javascripts %}
+    <script src="/build/app.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" integrity="sha512-0n3+WJpN96CBvs1+FiSVqS+8CA0nVddOZXS6jttuPAHyBs+K6TfGsDz3jAC5vVsQt1zAr72Xd1Lr1xL8a6Y6Cw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js" integrity="sha512-kK+J4ew3Efr2E1VlzDq+W8sELpAo0P5NdVs4KJIp4jOSAmhpN6wX+ZspGDZCBoBPuiGNsq4CPGK/cHBX9nuq2g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-xml-doc.min.js" integrity="sha512-HK+N55O4u5asJ5AZt0pOEtpJR/YWZLxE+nobVhtSGcVwqDAVBBusZT6F4LmSpaV0t1Ik5+pUvNbK/CtYQgQkiQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js" integrity="sha512-+kM4Z5qX6Ch12yvDqOiiMHDL/95B2S/bRMyCV2wE8p8nH3UX0YPD6/COM24kTx5cDIeEJD7BqXc9E+u6KDAdcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="border-b bg-white">
+        <div class="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+            <div class="font-semibold">Aqto API Wizard</div>
+            <div class="text-sm text-slate-600">Local JSON configs • Symfony + HTMX + Alpine + Tailwind</div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-4 py-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <section class="md:col-span-1">
+                <div class="bg-white rounded-lg border shadow-sm">
+                    <div class="p-4 border-b flex items-center justify-between">
+                        <h2 class="font-medium">Configs</h2>
+                        <div class="flex items-center gap-3" x-data="{ exportModalOpen: false }">
+                            <button
+                                type="button"
+                                class="text-sm text-blue-600 hover:underline"
+                                @click="exportModalOpen = true"
+                                hx-get="{{ path('configs_export_options') }}"
+                                hx-target="#exportModalBody"
+                                hx-swap="innerHTML"
+                            >
+                                Export
+                            </button>
+
+                            <div
+                                x-show="exportModalOpen"
+                                x-cloak
+                                class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                            >
+                                <div class="absolute inset-0 bg-black/40" @click="exportModalOpen = false"></div>
+                                <div class="relative w-full max-w-xl rounded-lg bg-white border shadow-lg">
+                                    <div id="exportModalBody">Loading…</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <div class="mb-4">
+                            <form
+                                class="flex items-center gap-2"
+                                hx-post="{{ path('configs_import') }}"
+                                hx-target="#importResult"
+                                hx-swap="innerHTML"
+                                enctype="multipart/form-data"
+                            >
+                                <input class="block w-full text-sm" type="file" name="file" accept="application/json">
+                                <button class="px-3 py-2 text-sm rounded bg-slate-900 text-white hover:bg-slate-800" type="submit">Import</button>
+                            </form>
+                            <div id="importResult" class="mt-2"></div>
+                        </div>
+
+                        {% if collection.configs is empty %}
+                            <div class="text-sm text-slate-600">No configs yet. Import one, or create one (next).</div>
+                        {% else %}
+                            <ul class="space-y-2">
+                                {% for cfg in collection.configs %}
+                                    <li class="p-2 rounded border bg-slate-50">
+                                        <div class="font-medium text-sm">{{ cfg.name }}</div>
+                                        <div class="text-xs text-slate-600">{{ cfg.request.method }} {{ cfg.request.url }}</div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="md:col-span-2">
+                <div class="bg-white rounded-lg border shadow-sm">
+                    <div class="p-4 border-b">
+                        <h2 class="font-medium">Response</h2>
+                        <div class="text-sm text-slate-600">Select a config and run it (MVP uses the first config).</div>
+                    </div>
+                    <div class="p-4">
+                        {% set first = collection.configs|first %}
+                        {% if first %}
+                            <form
+                                class="flex items-center justify-between gap-3 mb-3"
+                                hx-post="{{ path('execute') }}"
+                                hx-target="#executeResult"
+                                hx-swap="innerHTML"
+                            >
+                                <input type="hidden" name="configId" value="{{ first.id }}">
+                                <div class="text-sm text-slate-700 truncate">
+                                    <span class="font-medium">{{ first.name }}</span>
+                                    <span class="text-slate-600">• {{ first.request.method }} {{ first.request.url }}</span>
+                                </div>
+                                <button class="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700" type="submit">
+                                    Execute
+                                </button>
+                            </form>
+                        {% else %}
+                            <div class="text-sm text-slate-600">Import a config to enable execution.</div>
+                        {% endif %}
+
+                        <div id="executeResult" class="mt-2">
+                            <pre class="text-xs overflow-auto"><code class="language-json">{ "ready": true }</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+{% endblock %}
