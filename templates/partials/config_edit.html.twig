@@ -9,6 +9,7 @@
         apiKeyHeader: '{{ apiKeyHeader|default('X-API-Key') }}',
         apiKeyValue: '{{ apiKeyValue|default('') }}',
         refreshToken: '',
+        tokenExpiresAt: '',
         oauthTokenUrl: '{{ oauthTokenUrl|default('') }}',
         oauthRefreshUrl: '{{ oauthRefreshUrl|default('') }}',
         oauthModalOpen: false,
@@ -18,6 +19,10 @@
             ? $event.detail.accessToken
             : $event.detail.accessToken;
         refreshToken = $event.detail.refreshToken || refreshToken;
+
+        if ($event.detail.expiresIn && Number($event.detail.expiresIn) > 0) {
+            tokenExpiresAt = new Date(Date.now() + Number($event.detail.expiresIn) * 1000).toISOString();
+        }
 
         // Avoid clobbering oauthTokenUrl when the modal was used in refresh mode.
         if (($event.detail.mode || 'fetch') !== 'refresh') {
@@ -115,6 +120,33 @@
                         <label class="block text-sm">Bearer token</label>
                         <input name="bearerToken" x-model="bearerToken" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="Paste token, or fetch via OAuth">
                         <div class="mt-1 text-xs text-slate-600">Stored as an Authorization header on the auth profile/request.</div>
+
+                        <div class="mt-2 flex items-center gap-2" x-show="oauthTokenUrl || oauthRefreshUrl" x-cloak>
+                            <div class="text-xs text-slate-700">
+                                <span class="font-medium">OAuth</span>
+                                <template x-if="tokenExpiresAt">
+                                    <span>
+                                        — Expires <span class="font-mono" x-text="new Date(tokenExpiresAt).toLocaleString()"></span>
+                                    </span>
+                                </template>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="p-1.5 rounded border bg-white hover:bg-slate-100"
+                                title="Refresh token"
+                                @click="oauthModalOpen = true"
+                                hx-get="{{ path('oauth_token_modal') }}"
+                                :hx-vals="JSON.stringify({ applyEnv: activeEnv, mode: 'refresh', tokenUrl: (oauthRefreshUrl || oauthTokenUrl), refreshUrl: oauthRefreshUrl, refreshToken: refreshToken })"
+                                hx-target="#oauthModalBody"
+                                hx-swap="innerHTML"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                    <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466.75.75 0 011.06-1.06 4 4 0 006.662-1.79h-1.58a.75.75 0 010-1.5h2.75a.75.75 0 01.75.75v2.75a.75.75 0 01-1.5 0v-1.616z" clip-rule="evenodd" />
+                                    <path fill-rule="evenodd" d="M4.688 8.576a5.5 5.5 0 019.201-2.466.75.75 0 11-1.06 1.06 4 4 0 00-6.662 1.79h1.58a.75.75 0 010 1.5h-2.75a.75.75 0 01-.75-.75V6.96a.75.75 0 011.5 0v1.616z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <button
@@ -127,20 +159,6 @@
                             hx-swap="innerHTML"
                         >
                             Fetch token…
-                        </button>
-
-                        <button
-                            type="button"
-                            class="px-3 py-2 text-sm rounded border bg-white hover:bg-slate-100"
-                            x-show="oauthTokenUrl || oauthRefreshUrl || refreshToken"
-                            x-cloak
-                            @click="oauthModalOpen = true"
-                            hx-get="{{ path('oauth_token_modal') }}"
-                            :hx-vals="JSON.stringify({ applyEnv: activeEnv, mode: 'refresh', tokenUrl: (oauthRefreshUrl || oauthTokenUrl), refreshUrl: oauthRefreshUrl, refreshToken: refreshToken })"
-                            hx-target="#oauthModalBody"
-                            hx-swap="innerHTML"
-                        >
-                            Refresh token…
                         </button>
                     </div>
                 </div>

@@ -32,11 +32,19 @@
                         <h2 class="font-medium">Configs</h2>
                         <div
                             class="flex items-center gap-3"
-                            x-data="{ exportModalOpen: false, configModalOpen: false }"
+                            x-data="{ exportModalOpen: false, configModalOpen: false, toastOpen: false, toastKind: 'success', toastTitle: '', toastMessage: '', toastTimer: null }"
                             @config-created.document="configModalOpen = false"
                             @config-updated.document="configModalOpen = false"
                             @config-modal-open.document="configModalOpen = true"
                             @config-modal-close.document="configModalOpen = false"
+                            @aqto-toast.document="
+                                toastKind = $event.detail.kind || 'success';
+                                toastTitle = $event.detail.title || '';
+                                toastMessage = $event.detail.message || '';
+                                toastOpen = true;
+                                if (toastTimer) { clearTimeout(toastTimer); }
+                                toastTimer = setTimeout(() => { toastOpen = false; }, 2600);
+                            "
                         >
                             <button
                                 type="button"
@@ -57,6 +65,23 @@
                                 <div class="absolute inset-0 bg-black/40" @click="configModalOpen = false"></div>
                                 <div class="relative w-full max-w-2xl rounded-lg bg-white border shadow-lg max-h-[90vh] overflow-y-auto">
                                     <div id="configModalBody">Loading…</div>
+                                </div>
+                            </div>
+
+                            <div
+                                x-show="toastOpen"
+                                x-cloak
+                                class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+                            >
+                                <div class="absolute inset-0 bg-black/30" @click="toastOpen = false"></div>
+                                <div class="relative w-full max-w-sm rounded-lg border shadow-lg bg-white">
+                                    <div class="p-4">
+                                        <div class="text-sm font-medium" :class="toastKind === 'error' ? 'text-red-700' : 'text-emerald-700'" x-text="toastTitle"></div>
+                                        <div class="mt-1 text-sm text-slate-700" x-text="toastMessage"></div>
+                                        <div class="mt-3 flex justify-end">
+                                            <button type="button" class="px-3 py-1.5 text-sm rounded border bg-white hover:bg-slate-50" @click="toastOpen = false">Close</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 

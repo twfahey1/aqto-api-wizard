@@ -33,6 +33,10 @@
         hx-swap="innerHTML"
     >
         <input type="hidden" name="mode" :value="mode">
+        <input type="hidden" name="applyEnv" :value="applyEnv">
+        <input type="hidden" name="configId" value="{{ configId|default('') }}">
+        <input type="hidden" name="configName" value="{{ configName|default('') }}">
+        <input type="hidden" name="origin" value="{{ origin|default('') }}">
         <div>
             <label class="block text-sm font-medium">Token URL</label>
             <input name="tokenUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token" value="{{ tokenUrl|default('') }}" required>
@@ -54,7 +58,7 @@
 
         <div>
             <label class="block text-sm font-medium">Apply token to environment</label>
-            <select name="applyEnv" class="mt-1 w-full rounded border px-3 py-2 text-sm" x-model="applyEnv">
+            <select class="mt-1 w-full rounded border px-3 py-2 text-sm" x-model="applyEnv">
                 <option value="dev">dev</option>
                 <option value="live">live</option>
             </select>
