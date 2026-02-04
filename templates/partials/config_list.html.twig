@@ -67,116 +67,117 @@
                                 {% set oauthMeta = authProfile.oauth %}
                             {% endif %}
 
-                            {% if oauthMeta is not null and ((oauthMeta.tokenUrl ?? '') != '' or (oauthMeta.refreshUrl ?? '') != '') %}
-                                {% set storedTokenHint = '' %}
-                                {% if (oauthMeta.accessToken ?? '') != '' %}
-                                    {% set _t = oauthMeta.accessToken %}
-                                    {% set storedTokenHint = _t|length > 10 ? (_t|slice(0,4) ~ '…' ~ _t|slice(-4)) : _t %}
-                                {% endif %}
-                                <div
-                                    class="mt-1 flex items-center gap-2"
-                                    x-data="{
-                                        expiresAt: '{{ (oauthMeta.expiresAt ?? '')|e('js') }}',
-                                        tokenHint: '{{ storedTokenHint|e('js') }}',
-                                        updatedAt: '{{ (oauthMeta.updatedAt ?? '')|e('js') }}',
-                                        isExpired: false,
-                                        load() {
-                                            try {
-                                                const key = 'aqto.oauth.status.{{ cfg.id }}.{{ cfg.request.activeEnv }}';
-                                                const raw = localStorage.getItem(key);
-                                                if (!raw) {
-                                                    // Fall back to server-persisted oauth state (v5+).
-                                                    if (this.expiresAt) {
-                                                        this.isExpired = Date.now() > new Date(this.expiresAt).getTime();
-                                                    } else {
-                                                        this.isExpired = false;
-                                                    }
-                                                    return;
-                                                }
-                                                const data = JSON.parse(raw);
-                                                this.expiresAt = data.expiresAt || '';
-                                                this.tokenHint = data.tokenHint || '';
-                                                this.updatedAt = data.updatedAt || '';
+                        </button>
+
+                        {% if oauthMeta is not null and ((oauthMeta.tokenUrl ?? '') != '' or (oauthMeta.refreshUrl ?? '') != '') %}
+                            {% set storedTokenHint = '' %}
+                            {% if (oauthMeta.accessToken ?? '') != '' %}
+                                {% set _t = oauthMeta.accessToken %}
+                                {% set storedTokenHint = _t|length > 10 ? (_t|slice(0,4) ~ '…' ~ _t|slice(-4)) : _t %}
+                            {% endif %}
+                            <div
+                                class="mt-1 flex items-center gap-2"
+                                x-data="{
+                                    expiresAt: '{{ (oauthMeta.expiresAt ?? '')|e('js') }}',
+                                    tokenHint: '{{ storedTokenHint|e('js') }}',
+                                    updatedAt: '{{ (oauthMeta.updatedAt ?? '')|e('js') }}',
+                                    isExpired: false,
+                                    load() {
+                                        try {
+                                            const key = 'aqto.oauth.status.{{ cfg.id }}.{{ cfg.request.activeEnv }}';
+                                            const raw = localStorage.getItem(key);
+                                            if (!raw) {
+                                                // Fall back to server-persisted oauth state (v5+).
                                                 if (this.expiresAt) {
                                                     this.isExpired = Date.now() > new Date(this.expiresAt).getTime();
                                                 } else {
                                                     this.isExpired = false;
                                                 }
-                                            } catch (e) {
-                                                this.expiresAt = '';
-                                                this.tokenHint = '';
-                                                this.updatedAt = '';
+                                                return;
+                                            }
+                                            const data = JSON.parse(raw);
+                                            this.expiresAt = data.expiresAt || '';
+                                            this.tokenHint = data.tokenHint || '';
+                                            this.updatedAt = data.updatedAt || '';
+                                            if (this.expiresAt) {
+                                                this.isExpired = Date.now() > new Date(this.expiresAt).getTime();
+                                            } else {
                                                 this.isExpired = false;
                                             }
-                                        },
-                                        fmt() {
-                                            if (!this.expiresAt) return '';
-                                            try { return new Date(this.expiresAt).toLocaleString(); } catch { return this.expiresAt; }
-                                        },
-                                        fmtUpdated() {
-                                            if (!this.updatedAt) return '';
-                                            try { return new Date(this.updatedAt).toLocaleString(); } catch { return this.updatedAt; }
-                                        },
-                                        init() {
-                                            this.load();
-                                            window.addEventListener('aqto:oauth-status-updated', (ev) => {
-                                                const d = ev?.detail || {};
-                                                if (!d.configId || d.configId === '{{ cfg.id }}') {
-                                                    this.load();
-                                                }
-                                            });
+                                        } catch (e) {
+                                            this.expiresAt = '';
+                                            this.tokenHint = '';
+                                            this.updatedAt = '';
+                                            this.isExpired = false;
                                         }
-                                    }"
-                                    x-init="init()"
-                                >
-                                    <div class="text-[11px]" :class="isExpired ? 'text-red-700' : 'text-slate-600'">
-                                        <span class="font-medium">OAuth</span>
-                                        <template x-if="tokenHint">
-                                            <span class="ml-1">— Token <span class="font-mono" x-text="tokenHint"></span></span>
-                                        </template>
-                                        <template x-if="expiresAt">
-                                            <span>
-                                                —
-                                                <span x-text="isExpired ? 'Expired' : ('Expires ' + fmt())"></span>
-                                            </span>
-                                        </template>
-                                        <template x-if="!expiresAt">
-                                            <span>— No expiry info yet</span>
-                                        </template>
-                                        <template x-if="updatedAt">
-                                            <span class="ml-1" :class="isExpired ? 'text-red-700' : 'text-slate-500'">
-                                                (updated <span class="font-mono" x-text="fmtUpdated()"></span>)
-                                            </span>
-                                        </template>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        class="p-1 rounded border bg-white hover:bg-slate-100"
-                                        title="Refresh token"
-                                        hx-get="{{ path('oauth_token_modal') }}"
-                                        hx-target="#configModalBody"
-                                        hx-swap="innerHTML"
-                                        :hx-vals="JSON.stringify({
-                                            origin: 'list',
-                                            mode: 'refresh',
-                                            applyEnv: '{{ cfg.request.activeEnv }}',
-                                            configId: '{{ cfg.id }}',
-                                            configName: '{{ cfg.name|e('js') }}',
-                                            authProfileId: '{{ authProfile.id|default('') }}',
-                                            tokenUrl: '{{ (oauthMeta.refreshUrl ?? oauthMeta.tokenUrl ?? '')|e('js') }}',
-                                            refreshUrl: '{{ (oauthMeta.refreshUrl ?? '')|e('js') }}'
-                                        })"
-                                        onclick="var el=document.getElementById('configModalBody'); if(el){el.innerHTML='Loading…';} document.dispatchEvent(new CustomEvent('config-modal-open'));"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                                            <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466.75.75 0 011.06-1.06 4 4 0 006.662-1.79h-1.58a.75.75 0 010-1.5h2.75a.75.75 0 01.75.75v2.75a.75.75 0 01-1.5 0v-1.616z" clip-rule="evenodd" />
-                                            <path fill-rule="evenodd" d="M4.688 8.576a5.5 5.5 0 019.201-2.466.75.75 0 11-1.06 1.06 4 4 0 00-6.662 1.79h1.58a.75.75 0 010 1.5h-2.75a.75.75 0 01-.75-.75V6.96a.75.75 0 011.5 0v1.616z" clip-rule="evenodd" />
-                                        </svg>
-                                    </button>
+                                    },
+                                    fmt() {
+                                        if (!this.expiresAt) return '';
+                                        try { return new Date(this.expiresAt).toLocaleString(); } catch { return this.expiresAt; }
+                                    },
+                                    fmtUpdated() {
+                                        if (!this.updatedAt) return '';
+                                        try { return new Date(this.updatedAt).toLocaleString(); } catch { return this.updatedAt; }
+                                    },
+                                    init() {
+                                        this.load();
+                                        window.addEventListener('aqto:oauth-status-updated', (ev) => {
+                                            const d = ev?.detail || {};
+                                            if (!d.configId || d.configId === '{{ cfg.id }}') {
+                                                this.load();
+                                            }
+                                        });
+                                    }
+                                }"
+                                x-init="init()"
+                            >
+                                <div class="text-[11px]" :class="isExpired ? 'text-red-700' : 'text-slate-600'">
+                                    <span class="font-medium">OAuth</span>
+                                    <template x-if="tokenHint">
+                                        <span class="ml-1">— Token <span class="font-mono" x-text="tokenHint"></span></span>
+                                    </template>
+                                    <template x-if="expiresAt">
+                                        <span>
+                                            —
+                                            <span x-text="isExpired ? 'Expired' : ('Expires ' + fmt())"></span>
+                                        </span>
+                                    </template>
+                                    <template x-if="!expiresAt">
+                                        <span>— No expiry info yet</span>
+                                    </template>
+                                    <template x-if="updatedAt">
+                                        <span class="ml-1" :class="isExpired ? 'text-red-700' : 'text-slate-500'">
+                                            (updated <span class="font-mono" x-text="fmtUpdated()"></span>)
+                                        </span>
+                                    </template>
                                 </div>
-                            {% endif %}
-                        </button>
+
+                                <button
+                                    type="button"
+                                    class="p-1 rounded border bg-white hover:bg-slate-100"
+                                    title="Refresh token"
+                                    hx-get="{{ path('oauth_token_modal') }}"
+                                    hx-target="#configModalBody"
+                                    hx-swap="innerHTML"
+                                    :hx-vals="JSON.stringify({
+                                        origin: 'list',
+                                        mode: 'refresh',
+                                        applyEnv: '{{ cfg.request.activeEnv }}',
+                                        configId: '{{ cfg.id }}',
+                                        configName: '{{ cfg.name|e('js') }}',
+                                        authProfileId: '{{ authProfile.id|default('') }}',
+                                        tokenUrl: '{{ (oauthMeta.refreshUrl ?? oauthMeta.tokenUrl ?? '')|e('js') }}',
+                                        refreshUrl: '{{ (oauthMeta.refreshUrl ?? '')|e('js') }}'
+                                    })"
+                                    onclick="var el=document.getElementById('configModalBody'); if(el){el.innerHTML='Loading…';} document.dispatchEvent(new CustomEvent('config-modal-open'));"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                        <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466.75.75 0 011.06-1.06 4 4 0 006.662-1.79h-1.58a.75.75 0 010-1.5h2.75a.75.75 0 01.75.75v2.75a.75.75 0 01-1.5 0v-1.616z" clip-rule="evenodd" />
+                                        <path fill-rule="evenodd" d="M4.688 8.576a5.5 5.5 0 019.201-2.466.75.75 0 11-1.06 1.06 4 4 0 00-6.662 1.79h1.58a.75.75 0 010 1.5h-2.75a.75.75 0 01-.75-.75V6.96a.75.75 0 011.5 0v1.616z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                        {% endif %}
                     </form>
 
                     <div class="flex items-center gap-1">

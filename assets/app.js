@@ -4,6 +4,42 @@ import Alpine from 'alpinejs';
 window.htmx = htmx;
 window.Alpine = Alpine;
 
+function panelStorageKey(id) {
+  if (!id) return null;
+  return `aqto.ui.panel.${id}.open`;
+}
+
+window.aqtoCollapsible = function aqtoCollapsible(id, defaultOpen = true) {
+  return {
+    open: Boolean(defaultOpen),
+    init() {
+      const key = panelStorageKey(id);
+      if (!key) return;
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw === null) return;
+        if (raw === '1' || raw === 'true') this.open = true;
+        if (raw === '0' || raw === 'false') this.open = false;
+      } catch {
+        // ignore storage failures
+      }
+    },
+    setOpen(next) {
+      this.open = Boolean(next);
+      const key = panelStorageKey(id);
+      if (!key) return;
+      try {
+        localStorage.setItem(key, this.open ? '1' : '0');
+      } catch {
+        // ignore storage failures
+      }
+    },
+    toggle() {
+      this.setOpen(!this.open);
+    },
+  };
+};
+
 Alpine.start();
 
 // Re-run syntax highlighting after HTMX swaps.
