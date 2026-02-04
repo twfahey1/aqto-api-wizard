@@ -11,6 +11,16 @@ use Symfony\Component\Uid\Uuid;
 
 final class ConfigController extends AbstractController
 {
+    #[Route('/configs/list', name: 'configs_list', methods: ['GET'])]
+    public function list(ConfigStore $store): Response
+    {
+        $collection = $store->loadCollection();
+
+        return $this->render('partials/config_list.html.twig', [
+            'collection' => $collection,
+        ]);
+    }
+
     #[Route('/configs/new', name: 'configs_new', methods: ['GET'])]
     public function new(ConfigStore $store): Response
     {

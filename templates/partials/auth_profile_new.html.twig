@@ -1,0 +1,116 @@
+<div class="p-4" x-data="{
+    rows: [{ name: '', value: '', isSecret: false, secretKind: 'custom', exportPolicy: 'prompt', secretRef: '', placeholder: '' }],
+    addRow() { this.rows.push({ name: '', value: '', isSecret: false, secretKind: 'custom', exportPolicy: 'prompt', secretRef: '', placeholder: '' }); },
+    removeRow(i) { if (this.rows.length <= 1) return; this.rows.splice(i, 1); },
+}">
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h3 class="text-base font-medium">Create auth profile</h3>
+            <p class="text-sm text-slate-600">Reusable headers + optional OAuth credentials stored locally.</p>
+        </div>
+        <button type="button" class="text-sm text-slate-600 hover:text-slate-900" @click="authProfileModalOpen = false">Close</button>
+    </div>
+
+    <form
+        class="mt-4 space-y-4"
+        hx-post="{{ path('auth_profiles_create') }}"
+        hx-target="#authProfileList"
+        hx-swap="innerHTML"
+    >
+        <div id="authProfileCreateErrors"></div>
+
+        <div>
+            <label class="block text-sm font-medium">Name</label>
+            <input name="name" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="My Auth" required>
+        </div>
+
+        <div class="rounded border bg-slate-50 p-3">
+            <div class="flex items-center justify-between gap-3">
+                <div class="text-sm font-medium">Headers</div>
+                <button type="button" class="px-2 py-1 text-xs rounded border bg-white hover:bg-slate-100" @click="addRow()">Add header</button>
+            </div>
+
+            <div class="mt-2 space-y-2">
+                <template x-for="(row, i) in rows" :key="i">
+                    <div class="grid grid-cols-12 gap-2 items-start">
+                        <div class="col-span-4">
+                            <input class="w-full rounded border px-3 py-2 text-sm font-mono" placeholder="Header name" :name="'headersName[]'" x-model="row.name">
+                        </div>
+                        <div class="col-span-4">
+                            <input class="w-full rounded border px-3 py-2 text-sm font-mono" placeholder="Value" :name="'headersValue[]'" x-model="row.value">
+                        </div>
+                        <div class="col-span-2">
+                            <select class="w-full rounded border px-2 py-2 text-sm" x-model="row.secretKind">
+                                <option value="custom">custom</option>
+                                <option value="bearer">bearer</option>
+                                <option value="apiKey">apiKey</option>
+                            </select>
+                            <input type="hidden" :name="'headersSecretKind[]'" :value="row.secretKind">
+                        </div>
+                        <div class="col-span-1">
+                            <label class="inline-flex items-center gap-2 text-xs text-slate-700 pt-2">
+                                <input type="checkbox" class="rounded border" x-model="row.isSecret">
+                                <span>Secret</span>
+                            </label>
+                            <input type="hidden" :name="'headersIsSecret[]'" :value="row.isSecret ? '1' : '0'">
+                        </div>
+                        <div class="col-span-1 flex justify-end">
+                            <button type="button" class="px-2 py-2 text-xs rounded border bg-white hover:bg-slate-100" @click="removeRow(i)" :disabled="rows.length <= 1" title="Remove">✕</button>
+                        </div>
+
+                        <div class="col-span-12 -mt-1" x-show="row.isSecret" x-cloak>
+                            <div class="grid grid-cols-12 gap-2">
+                                <div class="col-span-4 text-[11px] text-slate-600 pt-1">Export policy</div>
+                                <div class="col-span-8">
+                                    <select class="w-full rounded border px-2 py-1.5 text-xs" x-model="row.exportPolicy">
+                                        <option value="prompt">prompt</option>
+                                        <option value="never">never</option>
+                                        <option value="always">always</option>
+                                    </select>
+                                    <input type="hidden" :name="'headersExportPolicy[]'" :value="row.exportPolicy">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <div class="mt-2 text-xs text-slate-600">If a secret value is blank, Aqto stores a secret placeholder and will require you to fill it later.</div>
+        </div>
+
+        <div class="rounded border bg-slate-50 p-3">
+            <div class="text-sm font-medium">OAuth (optional)</div>
+            <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-medium">Token URL</label>
+                    <input name="oauthTokenUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Refresh URL</label>
+                    <input name="oauthRefreshUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Client ID</label>
+                    <input name="oauthClientId" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="client_id">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Client Secret</label>
+                    <input type="password" name="oauthClientSecret" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="client_secret">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Scope</label>
+                    <input name="oauthScope" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="read:all write:all">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Audience</label>
+                    <input name="oauthAudience" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://api.example.com">
+                </div>
+            </div>
+            <div class="mt-2 text-xs text-slate-600">OAuth credentials are stored locally in <span class="font-mono">var/data/configs.json</span>. Export will prompt/redact secrets.</div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2">
+            <button type="button" class="px-3 py-2 text-sm rounded border bg-white hover:bg-slate-50" @click="authProfileModalOpen = false">Close</button>
+            <button class="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700" type="submit">Create</button>
+        </div>
+    </form>
+</div>

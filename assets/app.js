@@ -143,3 +143,11 @@ document.body.addEventListener('oauth-token-error', (event) => {
     dispatchToast('error', 'Failed refresh', `${d.message || 'Token refresh failed'}${name}${env}.`);
   }
 });
+
+// When auth profiles change, refresh the config list so auth summaries/OAuth meta stay in sync.
+window.addEventListener('auth-profiles-changed', () => {
+  if (!window.htmx) return;
+  const el = document.getElementById('configList');
+  if (!el) return;
+  window.htmx.ajax('GET', '/configs/list', { target: '#configList', swap: 'innerHTML' });
+});

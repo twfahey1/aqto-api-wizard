@@ -128,6 +128,47 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="mt-6 bg-white rounded-lg border shadow-sm">
+                    <div class="p-4 border-b flex items-center justify-between">
+                        <h2 class="font-medium">Auth Profiles</h2>
+                        <div
+                            class="flex items-center gap-3"
+                            x-data="{ authProfileModalOpen: false }"
+                            @auth-profile-created.document="authProfileModalOpen = false"
+                            @auth-profile-updated.document="authProfileModalOpen = false"
+                            @auth-profile-modal-open.document="authProfileModalOpen = true"
+                            @auth-profile-modal-close.document="authProfileModalOpen = false"
+                        >
+                            <button
+                                type="button"
+                                class="text-sm text-blue-600 hover:underline"
+                                @click="authProfileModalOpen = true"
+                                hx-get="{{ path('auth_profiles_new') }}"
+                                hx-target="#authProfileModalBody"
+                                hx-swap="innerHTML"
+                            >
+                                Create
+                            </button>
+
+                            <div
+                                x-show="authProfileModalOpen"
+                                x-cloak
+                                class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                            >
+                                <div class="absolute inset-0 bg-black/40" @click="authProfileModalOpen = false"></div>
+                                <div class="relative w-full max-w-2xl rounded-lg bg-white border shadow-lg max-h-[90vh] overflow-y-auto">
+                                    <div id="authProfileModalBody">Loading…</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <div id="authProfileList">
+                            {{ include('partials/auth_profile_list.html.twig', { collection: collection }) }}
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <section class="md:col-span-2">
