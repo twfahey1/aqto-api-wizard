@@ -47,6 +47,11 @@
                         <div
                             class="flex items-center gap-3"
                             x-data="{ exportModalOpen: false, configModalOpen: false, toastOpen: false, toastKind: 'success', toastTitle: '', toastMessage: '', toastTimer: null }"
+                            @keydown.escape.window="
+                                if (configModalOpen) configModalOpen = false;
+                                if (exportModalOpen) exportModalOpen = false;
+                                if (toastOpen) toastOpen = false;
+                            "
                             @config-created.document="configModalOpen = false"
                             @config-updated.document="configModalOpen = false"
                             @config-modal-open.document="configModalOpen = true"
@@ -163,6 +168,7 @@
                         <div
                             class="flex items-center gap-3"
                             x-data="{ authProfileModalOpen: false }"
+                            @keydown.escape.window="if (authProfileModalOpen) authProfileModalOpen = false"
                             @auth-profile-created.document="authProfileModalOpen = false"
                             @auth-profile-updated.document="authProfileModalOpen = false"
                             @auth-profile-modal-open.document="authProfileModalOpen = true"
