@@ -1,5 +1,6 @@
 import htmx from 'htmx.org';
 import Alpine from 'alpinejs';
+import Sortable from 'sortablejs';
 
 window.htmx = htmx;
 window.Alpine = Alpine;
@@ -42,6 +43,153 @@ window.aqtoCollapsible = function aqtoCollapsible(id, defaultOpen = true) {
 
 Alpine.start();
 
+function applyHtmlToConfigList(html) {
+  const el = document.getElementById('configList');
+  if (!el) return;
+  el.innerHTML = html;
+
+  // Re-init HTMX bindings on newly inserted content
+  if (window.htmx && typeof window.htmx.process === 'function') {
+    window.htmx.process(el);
+  }
+
+  // Re-init Alpine on the new subtree
+  if (window.Alpine && typeof window.Alpine.initTree === 'function') {
+    window.Alpine.initTree(el);
+  }
+
+  // Re-init syntax highlighting
+  if (window.Prism && typeof window.Prism.highlightAllUnder === 'function') {
+    window.Prism.highlightAllUnder(el);
+  }
+
+  // Re-init drag/drop
+  if (typeof window.aqtoInitConfigTreeDragDrop === 'function') {
+    window.aqtoInitConfigTreeDragDrop(el);
+  }
+}
+
+function serializeConfigTree(root) {
+  const container = root || document;
+  const lists = Array.from(container.querySelectorAll('ul[data-aqto-sortable="1"]'));
+  const items = [];
+
+  for (const ul of lists) {
+    const parentIdRaw = ul.dataset.folderId;
+    const parentId = parentIdRaw && parentIdRaw.trim() !== '' ? parentIdRaw.trim() : null;
+
+    const children = Array.from(ul.children).filter((li) => li && li.dataset && li.dataset.aqtoItem === '1');
+    let sort = 10;
+    for (const li of children) {
+      const type = li.dataset.type || '';
+      const id = li.dataset.id || '';
+      if (!type || !id) continue;
+      items.push({ type, id, parentId, sort });
+      sort += 10;
+    }
+  }
+
+  return items;
+}
+
+async function postTreeUpdate(items) {
+  const resp = await fetch('/folders/tree-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/html' },
+    body: JSON.stringify(items),
+  });
+
+  const html = await resp.text();
+  if (!resp.ok) {
+    throw new Error(html || `Tree update failed (${resp.status})`);
+  }
+
+  applyHtmlToConfigList(html);
+}
+
+window.aqtoInitConfigTreeDragDrop = function aqtoInitConfigTreeDragDrop(root) {
+  const container = root || document;
+  const lists = Array.from(container.querySelectorAll('ul[data-aqto-sortable="1"]'));
+  if (lists.length === 0) return;
+
+  for (const ul of lists) {
+    if (ul.__aqtoSortable) continue;
+
+    ul.__aqtoSortable = new Sortable(ul, {
+      group: { name: 'aqto-config-tree', pull: true, put: true },
+      animation: 120,
+      handle: '.aqto-drag-handle',
+      draggable: '[data-aqto-item="1"]',
+      fallbackOnBody: true,
+      swapThreshold: 0.65,
+      onEnd: async () => {
+        try {
+          const items = serializeConfigTree(document.getElementById('configList') || document);
+          await postTreeUpdate(items);
+        } catch (e) {
+          // Best-effort: alert then refresh to reflect server state
+          // eslint-disable-next-line no-alert
+          alert(e?.message || 'Unable to save order');
+
+          if (window.htmx) {
+            window.htmx.ajax('GET', '/configs/list', { target: '#configList', swap: 'innerHTML' });
+          }
+        }
+      },
+    });
+  }
+};
+
+async function postFolderForm(url, params) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'text/html' },
+    body: new URLSearchParams(params),
+  });
+
+  const html = await resp.text();
+  if (!resp.ok) {
+    throw new Error(html || `Request failed (${resp.status})`);
+  }
+
+  applyHtmlToConfigList(html);
+}
+
+window.aqtoFolderCreate = async function aqtoFolderCreate(parentId) {
+  const name = window.prompt('Folder name:');
+  if (!name) return;
+  const params = { name: name.trim() };
+  if (parentId) params.parentId = parentId;
+  try {
+    await postFolderForm('/folders', params);
+  } catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(e?.message || 'Unable to create folder');
+  }
+};
+
+window.aqtoFolderRename = async function aqtoFolderRename(id, currentName) {
+  const name = window.prompt('Rename folder:', currentName || '');
+  if (!name) return;
+  try {
+    await postFolderForm(`/folders/${encodeURIComponent(id)}/rename`, { name: name.trim() });
+  } catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(e?.message || 'Unable to rename folder');
+  }
+};
+
+window.aqtoFolderDelete = async function aqtoFolderDelete(id) {
+  const ok = window.confirm('Delete this folder? Items inside will be moved up one level.');
+  if (!ok) return;
+  try {
+    await postFolderForm(`/folders/${encodeURIComponent(id)}/delete`, {});
+  } catch (e) {
+    // eslint-disable-next-line no-alert
+    alert(e?.message || 'Unable to delete folder');
+  }
+};
+
 // Re-run syntax highlighting after HTMX swaps.
 document.body.addEventListener('htmx:afterSwap', (event) => {
   const target = event?.detail?.target || document.body;
@@ -52,6 +200,10 @@ document.body.addEventListener('htmx:afterSwap', (event) => {
 
   if (window.Prism && typeof window.Prism.highlightAllUnder === 'function') {
     window.Prism.highlightAllUnder(document.body);
+  }
+
+  if (typeof window.aqtoInitConfigTreeDragDrop === 'function') {
+    window.aqtoInitConfigTreeDragDrop(target);
   }
 });
 
@@ -187,3 +339,8 @@ window.addEventListener('auth-profiles-changed', () => {
   if (!el) return;
   window.htmx.ajax('GET', '/configs/list', { target: '#configList', swap: 'innerHTML' });
 });
+
+// Initial drag/drop init on first render (script is loaded with defer).
+if (typeof window.aqtoInitConfigTreeDragDrop === 'function') {
+  window.aqtoInitConfigTreeDragDrop(document);
+}

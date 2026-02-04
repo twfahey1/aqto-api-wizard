@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "alpinejs": "^3.14.8",
-    "htmx.org": "^1.9.12"
+    "htmx.org": "^1.9.12",
+    "sortablejs": "^1.15.2"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

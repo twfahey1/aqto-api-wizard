@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\ConfigStore;
+use App\Service\ConfigTreeBuilder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -12,12 +13,13 @@ use Symfony\Component\Uid\Uuid;
 final class ConfigController extends AbstractController
 {
     #[Route('/configs/list', name: 'configs_list', methods: ['GET'])]
-    public function list(ConfigStore $store): Response
+    public function list(ConfigStore $store, ConfigTreeBuilder $treeBuilder): Response
     {
         $collection = $store->loadCollection();
 
         return $this->render('partials/config_list.html.twig', [
             'collection' => $collection,
+            'tree' => $treeBuilder->build($collection),
         ]);
     }
 
@@ -106,7 +108,7 @@ final class ConfigController extends AbstractController
     }
 
     #[Route('/configs', name: 'configs_create', methods: ['POST'])]
-    public function create(Request $request, ConfigStore $store): Response
+    public function create(Request $request, ConfigStore $store, ConfigTreeBuilder $treeBuilder): Response
     {
         $collection = $store->loadCollection();
 
@@ -243,6 +245,7 @@ final class ConfigController extends AbstractController
 
         $response = $this->render('partials/config_list.html.twig', [
             'collection' => $collection,
+            'tree' => $treeBuilder->build($collection),
         ]);
 
         $response->headers->set('HX-Trigger', json_encode([
@@ -256,7 +259,7 @@ final class ConfigController extends AbstractController
     }
 
     #[Route('/configs/{id}', name: 'configs_update', methods: ['POST'])]
-    public function update(string $id, Request $request, ConfigStore $store): Response
+    public function update(string $id, Request $request, ConfigStore $store, ConfigTreeBuilder $treeBuilder): Response
     {
         $collection = $store->loadCollection();
         $configs = (array)($collection['configs'] ?? []);
@@ -408,6 +411,7 @@ final class ConfigController extends AbstractController
 
         $response = $this->render('partials/config_list.html.twig', [
             'collection' => $collection,
+            'tree' => $treeBuilder->build($collection),
         ]);
 
         $response->headers->set('HX-Trigger', json_encode([
@@ -421,7 +425,7 @@ final class ConfigController extends AbstractController
     }
 
     #[Route('/configs/{id}/delete', name: 'configs_delete', methods: ['POST'])]
-    public function delete(string $id, ConfigStore $store): Response
+    public function delete(string $id, ConfigStore $store, ConfigTreeBuilder $treeBuilder): Response
     {
         $collection = $store->loadCollection();
         $configs = (array)($collection['configs'] ?? []);
@@ -435,6 +439,7 @@ final class ConfigController extends AbstractController
 
         return $this->render('partials/config_list.html.twig', [
             'collection' => $collection,
+            'tree' => $treeBuilder->build($collection),
         ]);
     }
 
@@ -676,7 +681,7 @@ final class ConfigController extends AbstractController
     }
 
     #[Route('/configs/{id}/env', name: 'configs_set_env', methods: ['POST'])]
-    public function setEnv(string $id, Request $request, ConfigStore $store): Response
+    public function setEnv(string $id, Request $request, ConfigStore $store, ConfigTreeBuilder $treeBuilder): Response
     {
         $env = (string)$request->request->get('env', 'dev');
         if (!in_array($env, ['dev', 'live'], true)) {
@@ -711,6 +716,7 @@ final class ConfigController extends AbstractController
 
         return $this->render('partials/config_list.html.twig', [
             'collection' => $collection,
+            'tree' => $treeBuilder->build($collection),
         ]);
     }
 

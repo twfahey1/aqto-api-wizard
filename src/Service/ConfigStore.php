@@ -83,6 +83,7 @@ final class ConfigStore
             'meta' => [
                 'createdAt' => (new \DateTimeImmutable())->format(DATE_ATOM),
             ],
+            'folders' => [],
             'authProfiles' => [],
             'configs' => [],
         ];

@@ -44,6 +44,64 @@ final class ConfigMigrator
             $version = 5;
         }
 
+        if ($version === 5 && SchemaVersion::LATEST >= 6) {
+            $collection = $this->migrateV5ToV6($collection);
+            $version = 6;
+        }
+
+        return $collection;
+    }
+
+    /**
+     * @param array<string, mixed> $collection
+     * @return array<string, mixed>
+     */
+    private function migrateV5ToV6(array $collection): array
+    {
+        $collection['schemaVersion'] = 6;
+
+        if (!isset($collection['folders']) || !is_array($collection['folders'])) {
+            $collection['folders'] = [];
+        }
+
+        // v6 adds folders + per-item ordering.
+        $configs = (array)($collection['configs'] ?? []);
+        $sort = 10;
+        foreach ($configs as $i => $cfg) {
+            if (!is_array($cfg)) {
+                continue;
+            }
+
+            if (!array_key_exists('folderId', $cfg)) {
+                $cfg['folderId'] = null;
+            }
+            if (!array_key_exists('sort', $cfg) || !is_int($cfg['sort'])) {
+                $cfg['sort'] = $sort;
+                $sort += 10;
+            }
+
+            $configs[$i] = $cfg;
+        }
+        $collection['configs'] = $configs;
+
+        // Ensure folders have required fields (best-effort).
+        $folders = (array)($collection['folders'] ?? []);
+        $folderSort = 10;
+        foreach ($folders as $i => $folder) {
+            if (!is_array($folder)) {
+                continue;
+            }
+            if (!array_key_exists('parentId', $folder)) {
+                $folder['parentId'] = null;
+            }
+            if (!array_key_exists('sort', $folder) || !is_int($folder['sort'])) {
+                $folder['sort'] = $folderSort;
+                $folderSort += 10;
+            }
+            $folders[$i] = $folder;
+        }
+        $collection['folders'] = $folders;
+
         return $collection;
     }
 
