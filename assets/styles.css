@@ -3,3 +3,17 @@
 @tailwind utilities;
 
 [x-cloak] { display: none !important; }
+
+/* Keep Response bodies within their container (avoid horizontal overflow) */
+#executeResult pre,
+#executeResult code,
+#executeResult pre[class*="language-"],
+#executeResult code[class*="language-"] {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+#executeResult pre {
+	overflow-x: hidden;
+}

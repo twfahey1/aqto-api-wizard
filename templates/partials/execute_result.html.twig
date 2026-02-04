@@ -12,6 +12,6 @@
         </div>
 
         {% set lang = formatted.detectedType == 'json' ? 'json' : (formatted.detectedType == 'xml' ? 'xml' : (formatted.detectedType == 'html' ? 'markup' : 'none')) %}
-        <pre class="text-xs overflow-auto"><code class="language-{{ lang }}">{{ formatted.pretty }}</code></pre>
+        <pre class="text-xs whitespace-pre-wrap break-words overflow-auto max-h-[70vh]"><code class="language-{{ lang }} whitespace-pre-wrap break-words">{{ formatted.pretty }}</code></pre>
     {% endif %}
 </div>
