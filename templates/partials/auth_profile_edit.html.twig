@@ -1,4 +1,5 @@
 {% set headers = profile.headers|default([]) %}
+{% set params = profile.params|default([]) %}
 {% set oauth = (profile.oauth ?? null) is not null ? profile.oauth : {} %}
 {% set initRows = [] %}
 {% for h in headers %}
@@ -16,6 +17,19 @@
 {% endfor %}
 {% if initRows is empty %}
     {% set initRows = [{ name: '', value: '', isSecret: false, secretKind: 'custom', exportPolicy: 'prompt', secretRef: '', placeholder: '' }] %}
+{% endif %}
+
+{% set initParams = [] %}
+{% for p in params %}
+    {% set initParams = initParams|merge([
+        {
+            name: p.name|default(''),
+            value: p.value|default('')
+        }
+    ]) %}
+{% endfor %}
+{% if initParams is empty %}
+    {% set initParams = [{ name: '', value: '' }] %}
 {% endif %}
 
 <div
@@ -97,6 +111,34 @@
                     </div>
                 </template>
             </div>
+        </div>
+
+        <div
+            class="rounded border bg-slate-50 p-3"
+            data-init-rows="{{ initParams|json_encode|e('html_attr') }}"
+            x-data="window.aqtoKeyValueEditor($el.dataset.initRows)"
+        >
+            <div class="flex items-center justify-between gap-3">
+                <div class="text-sm font-medium">Params (optional)</div>
+                <button type="button" class="px-2 py-1 text-xs rounded border bg-white hover:bg-slate-100" @click="addRow()">Add param</button>
+            </div>
+
+            <div class="mt-2 space-y-2">
+                <template x-for="(row, i) in rows" :key="i">
+                    <div class="grid grid-cols-12 gap-2 items-start">
+                        <div class="col-span-5">
+                            <input class="w-full rounded border px-3 py-2 text-sm font-mono" placeholder="Param name" :name="'paramsName[]'" x-model="row.name">
+                        </div>
+                        <div class="col-span-6">
+                            <input class="w-full rounded border px-3 py-2 text-sm font-mono" placeholder="Value" :name="'paramsValue[]'" x-model="row.value">
+                        </div>
+                        <div class="col-span-1 flex justify-end">
+                            <button type="button" class="px-2 py-2 text-xs rounded border bg-white hover:bg-slate-100" @click="removeRow(i)" :disabled="rows.length <= 1" title="Remove">✕</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <div class="mt-2 text-xs text-slate-600">These are appended to the request query string for any config using this auth profile. Config-level query params override auth profile params when names match.</div>
         </div>
 
         <div class="rounded border bg-slate-50 p-3">

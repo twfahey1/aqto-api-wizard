@@ -67,6 +67,32 @@ window.aqtoAuthProfileEditor = function aqtoAuthProfileEditor(initRowsJson) {
   };
 };
 
+window.aqtoKeyValueEditor = function aqtoKeyValueEditor(initRowsJson) {
+  let rows = [];
+  try {
+    if (typeof initRowsJson === 'string' && initRowsJson.trim() !== '') {
+      rows = JSON.parse(initRowsJson);
+    }
+  } catch {
+    rows = [];
+  }
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    rows = [{ name: '', value: '' }];
+  }
+
+  return {
+    rows,
+    addRow() {
+      this.rows.push({ name: '', value: '' });
+    },
+    removeRow(i) {
+      if (this.rows.length <= 1) return;
+      this.rows.splice(i, 1);
+    },
+  };
+};
+
 Alpine.start();
 
 function applyHtmlToConfigList(html) {

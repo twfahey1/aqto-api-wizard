@@ -19,6 +19,7 @@ final class AuthProfileController extends AbstractController
                 'id' => '',
                 'name' => '',
                 'headers' => [],
+                'params' => [],
                 'oauth' => [
                     'tokenUrl' => '',
                     'refreshUrl' => '',
@@ -40,6 +41,7 @@ final class AuthProfileController extends AbstractController
         }
 
         $headers = $this->parseHeadersFromRequest($request);
+        $params = $this->parseParamsFromRequest($request);
         $oauth = $this->parseOAuthFromRequest($request);
 
         $collection = $store->loadCollection();
@@ -48,6 +50,7 @@ final class AuthProfileController extends AbstractController
             'id' => 'auth_'.Uuid::v4()->toRfc4122(),
             'name' => $name,
             'headers' => $headers,
+            'params' => $params,
             ...($oauth !== null ? ['oauth' => $oauth] : []),
         ];
 
@@ -114,6 +117,7 @@ final class AuthProfileController extends AbstractController
         }
 
         $headers = $this->parseHeadersFromRequest($request);
+        $params = $this->parseParamsFromRequest($request);
         $oauthNew = $this->parseOAuthFromRequest($request);
 
         $oauthExisting = $existing['oauth'] ?? null;
@@ -140,6 +144,7 @@ final class AuthProfileController extends AbstractController
             'id' => (string)$existing['id'],
             'name' => $name,
             'headers' => $headers,
+            'params' => $params,
         ];
 
         if ($oauthNew !== null) {
@@ -291,6 +296,41 @@ final class AuthProfileController extends AbstractController
         }
 
         return $headers;
+    }
+
+    /**
+     * @return array<int, array{name:string, value: string|number|bool|null}>
+     */
+    private function parseParamsFromRequest(Request $request): array
+    {
+        $post = $request->request->all();
+
+        $names = $post['paramsName'] ?? [];
+        $values = $post['paramsValue'] ?? [];
+
+        if (!is_array($names)) {
+            $names = [];
+        }
+        if (!is_array($values)) {
+            $values = [];
+        }
+
+        $count = max(count($names), count($values));
+        $params = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $name = trim((string)($names[$i] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $params[] = [
+                'name' => $name,
+                'value' => (string)($values[$i] ?? ''),
+            ];
+        }
+
+        return $params;
     }
 
     /**

@@ -49,6 +49,37 @@ final class ConfigMigrator
             $version = 6;
         }
 
+        if ($version === 6 && SchemaVersion::LATEST >= 7) {
+            $collection = $this->migrateV6ToV7($collection);
+            $version = 7;
+        }
+
+        return $collection;
+    }
+
+    /**
+     * @param array<string, mixed> $collection
+     * @return array<string, mixed>
+     */
+    private function migrateV6ToV7(array $collection): array
+    {
+        $collection['schemaVersion'] = 7;
+
+        // v7 adds optional authProfiles[].params (query params applied to requests using this auth profile).
+        $profiles = (array)($collection['authProfiles'] ?? []);
+        foreach ($profiles as $i => $profile) {
+            if (!is_array($profile)) {
+                continue;
+            }
+
+            if (!array_key_exists('params', $profile) || !is_array($profile['params'])) {
+                $profile['params'] = [];
+            }
+
+            $profiles[$i] = $profile;
+        }
+        $collection['authProfiles'] = $profiles;
+
         return $collection;
     }
 

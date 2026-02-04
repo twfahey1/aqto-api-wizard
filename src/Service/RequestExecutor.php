@@ -34,7 +34,7 @@ final class RequestExecutor
         }
 
         $headers = $this->buildHeaders($request, $authProfiles);
-        $query = $this->buildQuery($request);
+        $query = $this->buildQuery($request, $authProfiles);
 
         $options = [
             'headers' => $headers,
@@ -186,25 +186,49 @@ final class RequestExecutor
 
     /**
      * @param array<string, mixed> $request
+     * @param array<int, array<string, mixed>> $authProfiles
      * @return array<string, mixed>
      */
-    private function buildQuery(array $request): array
+    private function buildQuery(array $request, array $authProfiles): array
     {
         $query = [];
+
+        $authProfileId = trim((string)($request['authProfileId'] ?? ''));
+        if ($authProfileId !== '') {
+            foreach ($authProfiles as $profile) {
+                if (!is_array($profile) || (string)($profile['id'] ?? '') !== $authProfileId) {
+                    continue;
+                }
+                foreach ((array)($profile['params'] ?? []) as $param) {
+                    $this->applyQueryParam($query, $param);
+                }
+                break;
+            }
+        }
+
         foreach ((array)($request['query'] ?? []) as $param) {
-            if (!is_array($param)) {
-                continue;
-            }
-
-            $name = trim((string)($param['name'] ?? ''));
-            if ($name === '') {
-                continue;
-            }
-
-            $query[$name] = $param['value'] ?? null;
+            $this->applyQueryParam($query, $param);
         }
 
         return $query;
+    }
+
+    /**
+     * @param array<string, mixed> $query
+     * @param mixed $param
+     */
+    private function applyQueryParam(array &$query, mixed $param): void
+    {
+        if (!is_array($param)) {
+            return;
+        }
+
+        $name = trim((string)($param['name'] ?? ''));
+        if ($name === '') {
+            return;
+        }
+
+        $query[$name] = $param['value'] ?? null;
     }
 
     private function isPlaceholderSecret(string $value): bool
