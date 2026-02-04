@@ -224,6 +224,195 @@ final class OAuthTokenManager
     }
 
     /**
+     * Force a refresh (or fetch) of the OAuth token for the config's auth profile.
+     * Persists refreshed/fetched tokens back into the config collection.
+     *
+     * @return array{collection: array<string,mixed>, config: array<string,mixed>, error: string|null}
+     */
+    public function refreshForConfig(string $configId): array
+    {
+        $collection = $this->store->loadCollection();
+
+        $configs = (array)($collection['configs'] ?? []);
+        $config = null;
+        foreach ($configs as $cfg) {
+            if (is_array($cfg) && (string)($cfg['id'] ?? '') === $configId) {
+                $config = $cfg;
+                break;
+            }
+        }
+
+        if (!is_array($config)) {
+            return [
+                'collection' => $collection,
+                'config' => [],
+                'error' => 'Config not found.',
+            ];
+        }
+
+        $request = (array)($config['request'] ?? []);
+        $authProfileId = trim((string)($request['authProfileId'] ?? ''));
+
+        if ($authProfileId === '') {
+            return [
+                'collection' => $collection,
+                'config' => $config,
+                'error' => 'No auth profile is set for this config.',
+            ];
+        }
+
+        $profiles = (array)($collection['authProfiles'] ?? []);
+        $profileIndex = null;
+        $profile = null;
+
+        foreach ($profiles as $i => $p) {
+            if (is_array($p) && (string)($p['id'] ?? '') === $authProfileId) {
+                $profileIndex = $i;
+                $profile = $p;
+                break;
+            }
+        }
+
+        if (!is_array($profile) || $profileIndex === null) {
+            return [
+                'collection' => $collection,
+                'config' => $config,
+                'error' => 'Auth profile not found.',
+            ];
+        }
+
+        $oauth = $profile['oauth'] ?? null;
+        if (!is_array($oauth)) {
+            return [
+                'collection' => $collection,
+                'config' => $config,
+                'error' => 'OAuth is not configured on this auth profile.',
+            ];
+        }
+
+        $tokenUrl = trim((string)($oauth['tokenUrl'] ?? ''));
+        $refreshUrl = trim((string)($oauth['refreshUrl'] ?? ''));
+        if ($tokenUrl === '' && $refreshUrl === '') {
+            return [
+                'collection' => $collection,
+                'config' => $config,
+                'error' => 'OAuth tokenUrl/refreshUrl is missing on auth profile.',
+            ];
+        }
+
+        $refreshToken = trim((string)($oauth['refreshToken'] ?? ''));
+        $didUpdate = false;
+        $error = null;
+
+        if (($refreshUrl !== '' || $tokenUrl !== '') && $refreshToken !== '' && !$this->isPlaceholderSecret($refreshToken)) {
+            $url = $refreshUrl !== '' ? $refreshUrl : $tokenUrl;
+            $resp = $this->requestToken(
+                $url,
+                $this->buildRefreshPayload($oauth, $refreshToken),
+                $tokenUrl,
+                $refreshUrl,
+            );
+
+            if ($resp['ok']) {
+                $oauth = $this->applyTokenResponse($oauth, $resp['decoded']);
+                $didUpdate = true;
+            } else {
+                $error = $resp['error'];
+            }
+        }
+
+        if (!$didUpdate) {
+            $clientId = trim((string)($oauth['clientId'] ?? ''));
+            $clientSecret = trim((string)($oauth['clientSecret'] ?? ''));
+
+            if ($clientId === '' || $clientSecret === '' || $this->isPlaceholderSecret($clientSecret)) {
+                $msg = 'OAuth credentials missing on auth profile (client_id/client_secret). Open the OAuth modal once and enable “Remember credentials”.';
+                if ($error) {
+                    $msg .= ' Refresh also failed: '.$error;
+                }
+
+                return [
+                    'collection' => $collection,
+                    'config' => $config,
+                    'error' => $msg,
+                ];
+            }
+
+            if ($tokenUrl === '') {
+                $msg = 'OAuth tokenUrl is missing on auth profile.';
+                if ($error) {
+                    $msg .= ' Refresh also failed: '.$error;
+                }
+
+                return [
+                    'collection' => $collection,
+                    'config' => $config,
+                    'error' => $msg,
+                ];
+            }
+
+            $resp = $this->requestToken(
+                $tokenUrl,
+                $this->buildClientCredentialsPayload($oauth),
+                $tokenUrl,
+                $refreshUrl,
+            );
+
+            if (!$resp['ok']) {
+                $msg = 'OAuth token fetch failed.';
+                if ($error) {
+                    $msg .= ' Refresh also failed: '.$error;
+                }
+                if ($resp['error']) {
+                    $msg .= ' '.$resp['error'];
+                }
+                if (!empty($resp['fullResponse'])) {
+                    $msg .= "\n\nFull response was:\n".$resp['fullResponse'];
+                }
+
+                return [
+                    'collection' => $collection,
+                    'config' => $config,
+                    'error' => $msg,
+                ];
+            }
+
+            $oauth = $this->applyTokenResponse($oauth, $resp['decoded']);
+            $didUpdate = true;
+        }
+
+        if ($didUpdate) {
+            $profile['oauth'] = $oauth;
+            $profile = $this->ensureBearerHeader($profile, (string)($oauth['accessToken'] ?? ''), (string)($oauth['tokenType'] ?? 'bearer'));
+            $profiles[$profileIndex] = $profile;
+            $collection['authProfiles'] = array_values($profiles);
+
+            $this->store->saveCollection($collection);
+
+            // Reload to keep downstream behavior consistent.
+            $collection = $this->store->loadCollection();
+            foreach ((array)($collection['configs'] ?? []) as $cfg) {
+                if (is_array($cfg) && (string)($cfg['id'] ?? '') === $configId) {
+                    $config = $cfg;
+                    break;
+                }
+            }
+
+            return [
+                'collection' => $collection,
+                'config' => $config,
+                'error' => null,
+            ];
+        }
+
+        return [
+            'collection' => $collection,
+            'config' => $config,
+            'error' => $error ?: 'Unable to refresh OAuth token.',
+        ];
+    }
+
+    /**
      * @param array<string,mixed> $oauth
      * @return array<string,string>
      */

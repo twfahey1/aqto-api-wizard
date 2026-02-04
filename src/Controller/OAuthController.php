@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\ConfigStore;
+use App\Service\OAuthTokenManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -303,6 +304,111 @@ final class OAuthController extends AbstractController
                 'origin' => $origin,
             ]);
         }
+    }
+
+    #[Route('/oauth/refresh-from-config', name: 'oauth_refresh_from_config', methods: ['POST'])]
+    public function refreshFromConfig(Request $request, OAuthTokenManager $tokenManager): Response
+    {
+        $configId = trim((string)$request->request->get('configId', ''));
+        $configName = trim((string)$request->request->get('configName', ''));
+        $origin = trim((string)$request->request->get('origin', ''));
+
+        $applyEnv = (string)$request->request->get('applyEnv', 'dev');
+        if (!in_array($applyEnv, ['dev', 'live'], true)) {
+            $applyEnv = 'dev';
+        }
+
+        if ($configId === '') {
+            return $this->renderOAuthError('configId is required.', [
+                'mode' => 'refresh',
+                'applyEnv' => $applyEnv,
+                'configId' => $configId,
+                'configName' => $configName,
+                'origin' => $origin,
+            ]);
+        }
+
+        $result = $tokenManager->refreshForConfig($configId);
+        if ($result['error']) {
+            return $this->renderOAuthError($result['error'], [
+                'mode' => 'refresh',
+                'applyEnv' => $applyEnv,
+                'configId' => $configId,
+                'configName' => $configName,
+                'origin' => $origin,
+            ]);
+        }
+
+        $collection = $result['collection'];
+        $config = $result['config'];
+
+        $authProfileId = trim((string)($config['request']['authProfileId'] ?? ''));
+        $oauth = null;
+
+        foreach ((array)($collection['authProfiles'] ?? []) as $p) {
+            if (!is_array($p) || (string)($p['id'] ?? '') !== $authProfileId) {
+                continue;
+            }
+            $maybe = $p['oauth'] ?? null;
+            if (is_array($maybe)) {
+                $oauth = $maybe;
+            }
+            break;
+        }
+
+        if (!is_array($oauth)) {
+            return $this->renderOAuthError('OAuth is not configured on this auth profile.', [
+                'mode' => 'refresh',
+                'applyEnv' => $applyEnv,
+                'configId' => $configId,
+                'configName' => $configName,
+                'origin' => $origin,
+                'authProfileId' => $authProfileId,
+            ]);
+        }
+
+        $accessToken = (string)($oauth['accessToken'] ?? '');
+        $tokenType = strtolower((string)($oauth['tokenType'] ?? 'bearer'));
+        $refreshToken = (string)($oauth['refreshToken'] ?? '');
+
+        $expiresIn = null;
+        $expiresAt = (string)($oauth['expiresAt'] ?? '');
+        if ($expiresAt !== '') {
+            try {
+                $exp = new \DateTimeImmutable($expiresAt);
+                $delta = $exp->getTimestamp() - (new \DateTimeImmutable('now'))->getTimestamp();
+                if ($delta > 0) {
+                    $expiresIn = $delta;
+                }
+            } catch (\Throwable) {
+                $expiresIn = null;
+            }
+        }
+
+        $triggerPayload = [
+            'accessToken' => $accessToken,
+            'tokenType' => $tokenType,
+            'refreshToken' => $refreshToken,
+            'expiresIn' => $expiresIn,
+            'tokenUrl' => (string)($oauth['tokenUrl'] ?? ''),
+            'refreshUrl' => (string)($oauth['refreshUrl'] ?? ''),
+            'status' => 200,
+            'applyEnv' => $applyEnv,
+            'mode' => 'refresh',
+            'configId' => $configId,
+            'configName' => $configName,
+            'origin' => $origin,
+            'authProfileId' => $authProfileId,
+            'persisted' => true,
+        ];
+
+        $response = new Response('', 200);
+        $response->headers->set('Cache-Control', 'no-store');
+        $response->headers->set('HX-Trigger', json_encode([
+            'oauth-token-received' => $triggerPayload,
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        return $response;
     }
 
     /**

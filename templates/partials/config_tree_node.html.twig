@@ -230,20 +230,16 @@
                                 type="button"
                                 class="p-1 rounded border bg-white hover:bg-slate-100"
                                 title="Refresh token"
-                                hx-get="{{ path('oauth_token_modal') }}"
-                                hx-target="#configModalBody"
-                                hx-swap="innerHTML"
+                                hx-post="{{ path('oauth_refresh_from_config') }}"
+                                hx-swap="none"
                                 :hx-vals="JSON.stringify({
                                     origin: 'list',
                                     mode: 'refresh',
                                     applyEnv: '{{ cfg.request.activeEnv }}',
                                     configId: '{{ cfg.id }}',
                                     configName: '{{ cfg.name|e('js') }}',
-                                    authProfileId: '{{ authProfile.id|default('') }}',
-                                    tokenUrl: '{{ (oauthMeta.refreshUrl ?? oauthMeta.tokenUrl ?? '')|e('js') }}',
-                                    refreshUrl: '{{ (oauthMeta.refreshUrl ?? '')|e('js') }}'
+                                    authProfileId: '{{ authProfile.id|default('') }}'
                                 })"
-                                onclick="var el=document.getElementById('configModalBody'); if(el){el.innerHTML='Loading…';} document.dispatchEvent(new CustomEvent('config-modal-open'));"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                                     <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466.75.75 0 011.06-1.06 4 4 0 006.662-1.79h-1.58a.75.75 0 010-1.5h2.75a.75.75 0 01.75.75v2.75a.75.75 0 01-1.5 0v-1.616z" clip-rule="evenodd" />
