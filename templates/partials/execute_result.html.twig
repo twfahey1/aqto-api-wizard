@@ -1,7 +1,7 @@
 <div class="space-y-3">
     {% if result.error %}
         <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-            {{ result.error }}
+            <pre class="whitespace-pre-wrap break-words">{{ result.error }}</pre>
         </div>
     {% else %}
         <div class="flex items-center justify-between gap-4">

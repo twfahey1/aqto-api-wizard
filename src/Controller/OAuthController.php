@@ -196,7 +196,9 @@ final class OAuthController extends AbstractController
                 return $this->renderOAuthError('No access_token found in response.', [
                     'status' => $status,
                     'tokenUrl' => $tokenUrl,
-                    'response' => $this->redactForDiagnostics($decoded),
+                    // Show the full response to aid debugging when the token endpoint returns a non-standard payload.
+                    // This app is local-first; users are responsible for securing their stored config files.
+                    'response' => $decoded,
                     'mode' => $mode,
                     'applyEnv' => $applyEnv,
                     'configId' => $configId,

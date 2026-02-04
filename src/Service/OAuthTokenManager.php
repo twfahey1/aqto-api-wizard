@@ -170,6 +170,9 @@ final class OAuthTokenManager
                     if ($resp['error']) {
                         $msg .= ' '.$resp['error'];
                     }
+                    if (!empty($resp['fullResponse'])) {
+                        $msg .= "\n\nFull response was:\n".$resp['fullResponse'];
+                    }
 
                     return [
                         'collection' => $collection,
@@ -276,7 +279,7 @@ final class OAuthTokenManager
 
     /**
      * @param array<string,string> $payload
-     * @return array{ok:bool, decoded:array<string,mixed>, error:string|null}
+     * @return array{ok:bool, decoded:array<string,mixed>, error:string|null, status:int|null, fullResponse:string|null}
      */
     private function requestToken(string $url, array $payload, string $tokenUrl, string $refreshUrl): array
     {
@@ -298,6 +301,8 @@ final class OAuthTokenManager
                     'ok' => false,
                     'decoded' => [],
                     'error' => sprintf('Token endpoint did not return JSON (HTTP %d).', $status),
+                    'status' => $status,
+                    'fullResponse' => $this->formatOAuthResponseForDisplay($status, $body, null),
                 ];
             }
 
@@ -306,6 +311,8 @@ final class OAuthTokenManager
                     'ok' => false,
                     'decoded' => $decoded,
                     'error' => 'No access_token found in token response.',
+                    'status' => $status,
+                    'fullResponse' => $this->formatOAuthResponseForDisplay($status, $body, $decoded),
                 ];
             }
 
@@ -313,14 +320,85 @@ final class OAuthTokenManager
                 'ok' => true,
                 'decoded' => $decoded,
                 'error' => null,
+                'status' => $status,
+                'fullResponse' => null,
             ];
         } catch (\Throwable $e) {
             return [
                 'ok' => false,
                 'decoded' => [],
                 'error' => 'Token request failed: '.$e->getMessage(),
+                'status' => null,
+                'fullResponse' => null,
             ];
         }
+    }
+
+    /**
+     * @param array<string,mixed>|null $decoded
+     */
+    private function formatOAuthResponseForDisplay(?int $status, string $rawBody, ?array $decoded): string
+    {
+        $prefix = $status !== null ? sprintf("HTTP %d\n", $status) : '';
+
+        if (is_array($decoded)) {
+            $safe = $this->redactSensitiveFields($decoded);
+            $json = json_encode($safe, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            if (is_string($json) && $json !== '') {
+                return $prefix.$this->truncateForDisplay($json);
+            }
+
+            return $prefix.$this->truncateForDisplay(var_export($safe, true));
+        }
+
+        $body = trim($rawBody);
+        if ($body === '') {
+            return $prefix.'<empty body>';
+        }
+
+        return $prefix.$this->truncateForDisplay($body);
+    }
+
+    /**
+     * Redact fields that may contain secrets/tokens before displaying in UI.
+     *
+     * @param array<string,mixed> $value
+     * @return array<string,mixed>
+     */
+    private function redactSensitiveFields(array $value): array
+    {
+        $redacted = [];
+        foreach ($value as $k => $v) {
+            $key = is_string($k) ? $k : (string)$k;
+
+            if (preg_match('/(token|secret|password|authorization)/i', $key)) {
+                $redacted[$key] = '***redacted***';
+                continue;
+            }
+
+            if (is_array($v)) {
+                $redacted[$key] = $this->redactSensitiveFields($v);
+                continue;
+            }
+
+            $redacted[$key] = $v;
+        }
+
+        return $redacted;
+    }
+
+    private function truncateForDisplay(string $raw, int $maxBytes = 8000): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+
+        if (strlen($raw) <= $maxBytes) {
+            return $raw;
+        }
+
+        return substr($raw, 0, $maxBytes)."\n…(truncated)…";
     }
 
     /**
