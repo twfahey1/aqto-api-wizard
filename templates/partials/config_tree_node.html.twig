@@ -4,7 +4,7 @@
         data-aqto-item="1"
         data-type="folder"
         data-id="{{ node.id }}"
-        x-data="window.aqtoCollapsible('folder.' ~ node.id, true)"
+        x-data="window.aqtoCollapsible('folder.{{ node.id }}', true)"
         x-init="init()"
     >
         <div class="flex items-start justify-between gap-3">
@@ -18,7 +18,7 @@
                 <button
                     type="button"
                     class="p-1 -ml-1 rounded hover:bg-slate-100"
-                    @click="toggle()"
+                    @click.stop="toggle()"
                     :aria-expanded="open.toString()"
                     aria-controls="folderPanel_{{ node.id }}"
                     title="Toggle folder"
