@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\ConfigStore;
+use App\Service\OAuthTokenManager;
 use App\Service\RequestExecutor;
 use App\Service\ResponseFormatter;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,6 +17,7 @@ final class ExecuteController extends AbstractController
     public function execute(
         Request $request,
         ConfigStore $store,
+        OAuthTokenManager $oauthTokenManager,
         RequestExecutor $executor,
         ResponseFormatter $formatter,
     ): Response {
@@ -25,19 +27,23 @@ final class ExecuteController extends AbstractController
             return new Response('Missing configId.', 400);
         }
 
-        $collection = $store->loadCollection();
-        $config = null;
-
-        foreach ((array)($collection['configs'] ?? []) as $cfg) {
-            if (is_array($cfg) && (string)($cfg['id'] ?? '') === $id) {
-                $config = $cfg;
-                break;
-            }
+        $prepared = $oauthTokenManager->prepareForExecute($id);
+        if ($prepared['error'] !== null) {
+            return $this->render('partials/execute_result.html.twig', [
+                'config' => $prepared['config'],
+                'result' => [
+                    'status' => null,
+                    'headers' => [],
+                    'contentType' => null,
+                    'body' => '',
+                    'error' => $prepared['error'],
+                ],
+                'formatted' => ['pretty' => '', 'detectedType' => 'none'],
+            ]);
         }
 
-        if ($config === null) {
-            return new Response('Config not found.', 404);
-        }
+        $collection = $prepared['collection'];
+        $config = $prepared['config'];
 
         $result = $executor->execute($config, (array)($collection['authProfiles'] ?? []));
 

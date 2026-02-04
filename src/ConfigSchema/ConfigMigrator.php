@@ -39,6 +39,25 @@ final class ConfigMigrator
             $version = 4;
         }
 
+        if ($version === 4 && SchemaVersion::LATEST >= 5) {
+            $collection = $this->migrateV4ToV5($collection);
+            $version = 5;
+        }
+
+        return $collection;
+    }
+
+    /**
+     * @param array<string, mixed> $collection
+     * @return array<string, mixed>
+     */
+    private function migrateV4ToV5(array $collection): array
+    {
+        $collection['schemaVersion'] = 5;
+
+        // v5 expands authProfiles[].oauth to optionally include credentials and token state.
+        // Existing v4 collections are already compatible.
+
         return $collection;
     }
 

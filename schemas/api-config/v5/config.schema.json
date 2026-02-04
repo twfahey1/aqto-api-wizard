@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aqto.local/schemas/api-config/v5/config.schema.json",
+  "title": "Aqto API Wizard Config Collection (v5)",
+  "type": "object",
+  "required": ["schemaVersion", "configs", "authProfiles"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 5
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "authProfiles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/authProfile" },
+      "default": []
+    },
+    "configs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/config" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nameValuePair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "value": { "type": ["string", "number", "boolean", "null"] }
+      }
+    },
+    "secretKind": {
+      "type": "string",
+      "enum": ["bearer", "apiKey", "custom"]
+    },
+    "exportPolicy": {
+      "type": "string",
+      "enum": ["prompt", "never", "always"]
+    },
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "value": { "type": ["string", "null"] },
+        "isSecret": { "type": "boolean", "default": false },
+        "secretKind": { "$ref": "#/$defs/secretKind" },
+        "secretRef": { "type": "string" },
+        "exportPolicy": { "$ref": "#/$defs/exportPolicy", "default": "prompt" },
+        "placeholder": { "type": "string", "default": "{{AQTO_SECRET:ref}}" }
+      }
+    },
+    "env": {
+      "type": "string",
+      "enum": ["dev", "live"]
+    },
+    "urls": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dev": { "$ref": "#/$defs/nonEmptyString" },
+        "live": { "$ref": "#/$defs/nonEmptyString" }
+      },
+      "anyOf": [
+        { "required": ["dev"] },
+        { "required": ["live"] }
+      ]
+    },
+    "body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["none", "json", "form", "raw"]
+        },
+        "json": {
+          "type": "string",
+          "default": ""
+        },
+        "form": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nameValuePair" },
+          "default": []
+        },
+        "contentType": { "type": "string" },
+        "content": { "type": "string" }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "urls", "activeEnv"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+        },
+        "urls": { "$ref": "#/$defs/urls" },
+        "activeEnv": { "$ref": "#/$defs/env" },
+        "authProfileId": { "type": ["string", "null"] },
+        "headers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/header" },
+          "default": []
+        },
+        "query": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nameValuePair" },
+          "default": []
+        },
+        "body": { "$ref": "#/$defs/body" }
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "request"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "tags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "default": []
+        },
+        "request": { "$ref": "#/$defs/request" }
+      }
+    },
+    "oauth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tokenUrl": { "type": "string" },
+        "refreshUrl": { "type": "string" },
+
+        "clientId": { "type": "string" },
+        "clientSecret": { "type": "string" },
+        "scope": { "type": "string" },
+        "audience": { "type": "string" },
+
+        "tokenType": { "type": "string" },
+        "accessToken": { "type": "string" },
+        "refreshToken": { "type": "string" },
+
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "authProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "headers"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "headers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/header" },
+          "default": []
+        },
+        "oauth": {
+          "anyOf": [
+            { "$ref": "#/$defs/oauth" },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}

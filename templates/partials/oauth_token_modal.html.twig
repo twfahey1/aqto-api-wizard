@@ -1,4 +1,5 @@
 {% set _mode = mode|default('fetch') %}
+{% set _oauth = oauthDefaults|default({}) %}
 <div class="p-4" x-data="{
     tokenBodyMode: 'form',
     applyEnv: '{{ applyEnv|default('dev') }}',
@@ -7,13 +8,15 @@
         ? [
             { key: 'grant_type', value: 'refresh_token' },
             { key: 'refresh_token', value: refreshToken|default('') },
-            { key: 'client_id', value: '' },
-            { key: 'client_secret', value: '' },
+            { key: 'client_id', value: (_oauth.clientId ?? '') },
+            { key: 'client_secret', value: (_oauth.clientSecret ?? '') },
+            { key: 'scope', value: (_oauth.scope ?? '') },
         ]
         : [
             { key: 'grant_type', value: 'client_credentials' },
-            { key: 'client_id', value: '' },
-            { key: 'client_secret', value: '' },
+            { key: 'client_id', value: (_oauth.clientId ?? '') },
+            { key: 'client_secret', value: (_oauth.clientSecret ?? '') },
+            { key: 'scope', value: (_oauth.scope ?? '') },
         ])|json_encode|raw }},
     addRow() { this.rows.push({ key: '', value: '' }); },
     removeRow(i) { if (this.rows.length <= 1) return; this.rows.splice(i, 1); },
@@ -37,6 +40,7 @@
         <input type="hidden" name="configId" value="{{ configId|default('') }}">
         <input type="hidden" name="configName" value="{{ configName|default('') }}">
         <input type="hidden" name="origin" value="{{ origin|default('') }}">
+        <input type="hidden" name="authProfileId" value="{{ authProfileId|default('') }}">
         <div>
             <label class="block text-sm font-medium">Token URL</label>
             <input name="tokenUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token" value="{{ tokenUrl|default('') }}" required>
@@ -105,13 +109,20 @@
                 </template>
             </div>
 
-            <div class="mt-2 text-xs text-slate-600">Tip: client_secret stays in this request only (not stored).</div>
+            {% if (authProfileId|default('')) != '' %}
+                <label class="mt-3 flex items-center gap-2 text-xs text-slate-700">
+                    <input type="checkbox" class="rounded border" name="rememberCredentials" value="1" checked>
+                    Remember credentials + token state on this auth profile (stores client_secret in <span class="font-mono">var/data/configs.json</span>)
+                </label>
+            {% else %}
+                <div class="mt-2 text-xs text-slate-600">Tip: To persist credentials, open this modal from a config using an auth profile.</div>
+            {% endif %}
         </div>
 
         <div x-show="tokenBodyMode === 'json'" x-cloak>
             <label class="block text-sm font-medium">JSON payload</label>
             <textarea name="tokenBodyJson" rows="6" class="mt-1 w-full rounded border px-3 py-2 text-sm font-mono" placeholder='{"grant_type":"client_credentials","client_id":"...","client_secret":"..."}'></textarea>
-            <div class="mt-1 text-xs text-slate-600">Tip: client_secret stays in this request only (not stored).</div>
+            <div class="mt-1 text-xs text-slate-600">Note: Remembering credentials currently only supports Form mode.</div>
         </div>
 
         <div class="flex items-center justify-end gap-2">

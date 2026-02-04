@@ -68,18 +68,35 @@
                             {% endif %}
 
                             {% if oauthMeta is not null and ((oauthMeta.tokenUrl ?? '') != '' or (oauthMeta.refreshUrl ?? '') != '') %}
+                                {% set storedTokenHint = '' %}
+                                {% if (oauthMeta.accessToken ?? '') != '' %}
+                                    {% set _t = oauthMeta.accessToken %}
+                                    {% set storedTokenHint = _t|length > 10 ? (_t|slice(0,4) ~ '…' ~ _t|slice(-4)) : _t %}
+                                {% endif %}
                                 <div
                                     class="mt-1 flex items-center gap-2"
                                     x-data="{
-                                        expiresAt: '',
+                                        expiresAt: '{{ (oauthMeta.expiresAt ?? '')|e('js') }}',
+                                        tokenHint: '{{ storedTokenHint|e('js') }}',
+                                        updatedAt: '{{ (oauthMeta.updatedAt ?? '')|e('js') }}',
                                         isExpired: false,
                                         load() {
                                             try {
                                                 const key = 'aqto.oauth.status.{{ cfg.id }}.{{ cfg.request.activeEnv }}';
                                                 const raw = localStorage.getItem(key);
-                                                if (!raw) { this.expiresAt = ''; this.isExpired = false; return; }
+                                                if (!raw) {
+                                                    // Fall back to server-persisted oauth state (v5+).
+                                                    if (this.expiresAt) {
+                                                        this.isExpired = Date.now() > new Date(this.expiresAt).getTime();
+                                                    } else {
+                                                        this.isExpired = false;
+                                                    }
+                                                    return;
+                                                }
                                                 const data = JSON.parse(raw);
                                                 this.expiresAt = data.expiresAt || '';
+                                                this.tokenHint = data.tokenHint || '';
+                                                this.updatedAt = data.updatedAt || '';
                                                 if (this.expiresAt) {
                                                     this.isExpired = Date.now() > new Date(this.expiresAt).getTime();
                                                 } else {
@@ -87,12 +104,18 @@
                                                 }
                                             } catch (e) {
                                                 this.expiresAt = '';
+                                                this.tokenHint = '';
+                                                this.updatedAt = '';
                                                 this.isExpired = false;
                                             }
                                         },
                                         fmt() {
                                             if (!this.expiresAt) return '';
                                             try { return new Date(this.expiresAt).toLocaleString(); } catch { return this.expiresAt; }
+                                        },
+                                        fmtUpdated() {
+                                            if (!this.updatedAt) return '';
+                                            try { return new Date(this.updatedAt).toLocaleString(); } catch { return this.updatedAt; }
                                         },
                                         init() {
                                             this.load();
@@ -108,6 +131,9 @@
                                 >
                                     <div class="text-[11px]" :class="isExpired ? 'text-red-700' : 'text-slate-600'">
                                         <span class="font-medium">OAuth</span>
+                                        <template x-if="tokenHint">
+                                            <span class="ml-1">— Token <span class="font-mono" x-text="tokenHint"></span></span>
+                                        </template>
                                         <template x-if="expiresAt">
                                             <span>
                                                 —
@@ -116,6 +142,11 @@
                                         </template>
                                         <template x-if="!expiresAt">
                                             <span>— No expiry info yet</span>
+                                        </template>
+                                        <template x-if="updatedAt">
+                                            <span class="ml-1" :class="isExpired ? 'text-red-700' : 'text-slate-500'">
+                                                (updated <span class="font-mono" x-text="fmtUpdated()"></span>)
+                                            </span>
                                         </template>
                                     </div>
 
@@ -132,6 +163,7 @@
                                             applyEnv: '{{ cfg.request.activeEnv }}',
                                             configId: '{{ cfg.id }}',
                                             configName: '{{ cfg.name|e('js') }}',
+                                            authProfileId: '{{ authProfile.id|default('') }}',
                                             tokenUrl: '{{ (oauthMeta.refreshUrl ?? oauthMeta.tokenUrl ?? '')|e('js') }}',
                                             refreshUrl: '{{ (oauthMeta.refreshUrl ?? '')|e('js') }}'
                                         })"

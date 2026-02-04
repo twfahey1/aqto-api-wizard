@@ -40,7 +40,7 @@ function oauthStatusKey(configId, env) {
   return `aqto.oauth.status.${configId}.${env}`;
 }
 
-function setOAuthStatus({ configId, applyEnv, expiresIn }) {
+function setOAuthStatus({ configId, applyEnv, expiresIn, accessToken }) {
   const env = applyEnv || 'dev';
   const key = oauthStatusKey(configId, env);
   if (!key) return;
@@ -48,6 +48,11 @@ function setOAuthStatus({ configId, applyEnv, expiresIn }) {
   const payload = {
     updatedAt: new Date().toISOString(),
   };
+
+  const hint = tokenHint(accessToken);
+  if (hint) {
+    payload.tokenHint = hint;
+  }
 
   const seconds = Number(expiresIn);
   if (Number.isFinite(seconds) && seconds > 0) {
@@ -67,6 +72,33 @@ function setOAuthStatus({ configId, applyEnv, expiresIn }) {
   );
 }
 
+function tokenHint(accessToken) {
+  if (typeof accessToken !== 'string') return '';
+  const t = accessToken.trim();
+  if (t.length <= 10) return t;
+  return `${t.slice(0, 4)}…${t.slice(-4)}`;
+}
+
+async function applyBearerToConfig(configId, { accessToken, tokenType, refreshToken, expiresIn } = {}) {
+  if (!configId || !accessToken) return;
+
+  const body = new URLSearchParams();
+  body.set('accessToken', accessToken);
+  if (tokenType) body.set('tokenType', tokenType);
+  if (refreshToken) body.set('refreshToken', refreshToken);
+  if (expiresIn !== undefined && expiresIn !== null) body.set('expiresIn', String(expiresIn));
+
+  try {
+    await fetch(`/configs/${encodeURIComponent(configId)}/apply-bearer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+  } catch {
+    // ignore apply failures; refresh toast still reports token refresh result
+  }
+}
+
 function dispatchToast(kind, title, message) {
   document.dispatchEvent(
     new CustomEvent('aqto-toast', {
@@ -78,7 +110,21 @@ function dispatchToast(kind, title, message) {
 document.body.addEventListener('oauth-token-received', (event) => {
   const d = event?.detail || {};
   if (d?.configId) {
-    setOAuthStatus({ configId: d.configId, applyEnv: d.applyEnv, expiresIn: d.expiresIn });
+    setOAuthStatus({
+      configId: d.configId,
+      applyEnv: d.applyEnv,
+      expiresIn: d.expiresIn,
+      accessToken: d.accessToken,
+    });
+  }
+
+  if (d?.origin === 'list' && d?.accessToken && d?.configId && !d?.persisted) {
+    applyBearerToConfig(d.configId, {
+      accessToken: d.accessToken,
+      tokenType: d.tokenType,
+      refreshToken: d.refreshToken,
+      expiresIn: d.expiresIn,
+    });
   }
 
   if (d?.origin === 'list' && d?.mode === 'refresh') {

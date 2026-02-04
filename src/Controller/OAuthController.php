@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Service\ConfigStore;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,7 +12,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final class OAuthController extends AbstractController
 {
     #[Route('/oauth/token-modal', name: 'oauth_token_modal', methods: ['GET'])]
-    public function tokenModal(Request $request): Response
+    public function tokenModal(Request $request, ConfigStore $store): Response
     {
         $applyEnv = (string)$request->query->get('applyEnv', 'dev');
         if (!in_array($applyEnv, ['dev', 'live'], true)) {
@@ -31,20 +32,53 @@ final class OAuthController extends AbstractController
         $refreshUrl = trim((string)$request->query->get('refreshUrl', ''));
         $refreshToken = trim((string)$request->query->get('refreshToken', ''));
 
+        $authProfileId = trim((string)$request->query->get('authProfileId', ''));
+        $oauthDefaults = [
+            'clientId' => '',
+            'clientSecret' => '',
+            'scope' => '',
+            'audience' => '',
+            'refreshToken' => $refreshToken,
+            'tokenUrl' => $tokenUrl,
+            'refreshUrl' => $refreshUrl,
+        ];
+
+        if ($authProfileId !== '') {
+            $collection = $store->loadCollection();
+            foreach ((array)($collection['authProfiles'] ?? []) as $p) {
+                if (!is_array($p) || (string)($p['id'] ?? '') !== $authProfileId) {
+                    continue;
+                }
+                $oauth = $p['oauth'] ?? null;
+                if (is_array($oauth)) {
+                    $oauthDefaults['clientId'] = (string)($oauth['clientId'] ?? '');
+                    $oauthDefaults['clientSecret'] = (string)($oauth['clientSecret'] ?? '');
+                    $oauthDefaults['scope'] = (string)($oauth['scope'] ?? '');
+                    $oauthDefaults['audience'] = (string)($oauth['audience'] ?? '');
+                    $oauthDefaults['refreshToken'] = $oauthDefaults['refreshToken'] !== '' ? $oauthDefaults['refreshToken'] : (string)($oauth['refreshToken'] ?? '');
+                    $oauthDefaults['tokenUrl'] = $oauthDefaults['tokenUrl'] !== '' ? $oauthDefaults['tokenUrl'] : (string)($oauth['tokenUrl'] ?? '');
+                    $oauthDefaults['refreshUrl'] = $oauthDefaults['refreshUrl'] !== '' ? $oauthDefaults['refreshUrl'] : (string)($oauth['refreshUrl'] ?? '');
+                }
+                break;
+            }
+        }
+
         return $this->render('partials/oauth_token_modal.html.twig', [
             'applyEnv' => $applyEnv,
             'configId' => $configId,
             'configName' => $configName,
             'origin' => $origin,
             'mode' => $mode,
-            'tokenUrl' => $tokenUrl,
-            'refreshUrl' => $refreshUrl,
-            'refreshToken' => $refreshToken,
+            'tokenUrl' => $oauthDefaults['tokenUrl'],
+            'refreshUrl' => $oauthDefaults['refreshUrl'],
+            'refreshToken' => $oauthDefaults['refreshToken'],
+            'authProfileId' => $authProfileId,
+            'oauthDefaults' => $oauthDefaults,
         ]);
     }
 
     #[Route('/oauth/fetch-token', name: 'oauth_fetch_token', methods: ['POST'])]
-    public function fetchToken(Request $request, HttpClientInterface $httpClient): Response
+    public function fetchToken(Request $request, HttpClientInterface $httpClient, ConfigStore $store): Response
     {
         $configId = trim((string)$request->request->get('configId', ''));
         $configName = trim((string)$request->request->get('configName', ''));
@@ -58,6 +92,9 @@ final class OAuthController extends AbstractController
         $tokenUrl = trim((string)$request->request->get('tokenUrl', ''));
         $refreshUrl = trim((string)$request->request->get('refreshUrl', ''));
         $bodyMode = (string)$request->request->get('tokenBodyMode', 'form');
+
+        $authProfileId = trim((string)$request->request->get('authProfileId', ''));
+        $rememberCredentials = (bool)$request->request->get('rememberCredentials', false);
         $applyEnv = (string)$request->request->get('applyEnv', 'dev');
         if (!in_array($applyEnv, ['dev', 'live'], true)) {
             $applyEnv = 'dev';
@@ -181,7 +218,62 @@ final class OAuthController extends AbstractController
                 'configId' => $configId,
                 'configName' => $configName,
                 'origin' => $origin,
+                'authProfileId' => $authProfileId,
             ];
+
+            // Persist OAuth details into the auth profile when requested.
+            if ($rememberCredentials && $authProfileId !== '' && $bodyMode === 'form') {
+                $collection = $store->loadCollection();
+                $profiles = (array)($collection['authProfiles'] ?? []);
+
+                foreach ($profiles as $pi => $p) {
+                    if (!is_array($p) || (string)($p['id'] ?? '') !== $authProfileId) {
+                        continue;
+                    }
+
+                    $oauth = $p['oauth'] ?? [];
+                    $oauth = is_array($oauth) ? $oauth : [];
+                    $oauth['tokenUrl'] = $tokenUrl;
+                    if ($refreshUrl !== '') {
+                        $oauth['refreshUrl'] = $refreshUrl;
+                    }
+
+                    // Store common OAuth fields from the posted form payload.
+                    $posted = $options['body'] ?? [];
+                    if (is_array($posted)) {
+                        if (isset($posted['client_id'])) {
+                            $oauth['clientId'] = (string)$posted['client_id'];
+                        }
+                        if (isset($posted['client_secret'])) {
+                            $oauth['clientSecret'] = (string)$posted['client_secret'];
+                        }
+                        if (isset($posted['scope'])) {
+                            $oauth['scope'] = (string)$posted['scope'];
+                        }
+                        if (isset($posted['audience'])) {
+                            $oauth['audience'] = (string)$posted['audience'];
+                        }
+                    }
+
+                    // Persist token state as well.
+                    $oauth['accessToken'] = $accessToken;
+                    $oauth['tokenType'] = $tokenType !== '' ? $tokenType : 'bearer';
+                    $oauth['updatedAt'] = (new \DateTimeImmutable())->format(DATE_ATOM);
+                    if ($refreshToken !== '') {
+                        $oauth['refreshToken'] = $refreshToken;
+                    }
+                    if ($expiresIn !== null && is_numeric($expiresIn) && (int)$expiresIn > 0) {
+                        $oauth['expiresAt'] = (new \DateTimeImmutable())->modify(sprintf('+%d seconds', (int)$expiresIn))->format(DATE_ATOM);
+                    }
+
+                    $p['oauth'] = $oauth;
+                    $profiles[$pi] = $p;
+                    $collection['authProfiles'] = array_values($profiles);
+                    $store->saveCollection($collection);
+                    $triggerPayload['persisted'] = true;
+                    break;
+                }
+            }
 
             $response = $this->render('partials/oauth_token_result.html.twig', [
                 'status' => $status,

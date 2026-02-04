@@ -25,6 +25,27 @@ final class ImportExportController extends AbstractController
             if (!is_array($profile)) {
                 continue;
             }
+
+            // OAuth secrets stored on auth profiles (v5+).
+            $oauth = $profile['oauth'] ?? null;
+            if (is_array($oauth)) {
+                foreach (['clientSecret' => 'OAuth client_secret', 'refreshToken' => 'OAuth refresh_token', 'accessToken' => 'OAuth access_token'] as $field => $label) {
+                    $value = (string)($oauth[$field] ?? '');
+                    if ($value === '') {
+                        continue;
+                    }
+
+                    $secretRef = sprintf('auth.%s.oauth.%s', $profile['id'] ?? $profileIndex, $field);
+                    $secrets[] = [
+                        'configName' => 'Auth: '.($profile['name'] ?? '(unnamed)'),
+                        'headerName' => $label,
+                        'secretKind' => 'custom',
+                        'secretRef' => $secretRef,
+                        'hasValue' => true,
+                    ];
+                }
+            }
+
             foreach (($profile['headers'] ?? []) as $headerIndex => $header) {
                 if (!is_array($header) || !($header['isSecret'] ?? false)) {
                     continue;
@@ -203,6 +224,24 @@ final class ImportExportController extends AbstractController
         foreach (($collection['authProfiles'] ?? []) as $profileIndex => $profile) {
             if (!is_array($profile)) {
                 continue;
+            }
+
+            // OAuth secrets stored on auth profiles (v5+).
+            $oauth = $profile['oauth'] ?? null;
+            if (is_array($oauth)) {
+                foreach (['clientSecret', 'refreshToken', 'accessToken'] as $field) {
+                    $value = (string)($oauth[$field] ?? '');
+                    if ($value === '') {
+                        continue;
+                    }
+
+                    $secretRef = sprintf('auth.%s.oauth.%s', $profile['id'] ?? $profileIndex, $field);
+                    if (!isset($include[$secretRef])) {
+                        $oauth[$field] = sprintf('{{AQTO_SECRET:%s}}', $secretRef);
+                    }
+                }
+
+                $collection['authProfiles'][$profileIndex]['oauth'] = $oauth;
             }
 
             foreach (($profile['headers'] ?? []) as $headerIndex => $header) {

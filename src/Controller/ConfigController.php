@@ -428,6 +428,161 @@ final class ConfigController extends AbstractController
         ]);
     }
 
+    #[Route('/configs/{id}/apply-bearer', name: 'configs_apply_bearer', methods: ['POST'])]
+    public function applyBearer(string $id, Request $request, ConfigStore $store): Response
+    {
+        $accessToken = trim((string)$request->request->get('accessToken', ''));
+        if ($accessToken === '') {
+            return new Response('Missing accessToken.', 400);
+        }
+
+        $tokenType = trim((string)$request->request->get('tokenType', 'bearer'));
+        $refreshToken = trim((string)$request->request->get('refreshToken', ''));
+        $expiresIn = $request->request->get('expiresIn', null);
+
+        $collection = $store->loadCollection();
+
+        $configs = (array)($collection['configs'] ?? []);
+        $configIdx = null;
+        $config = null;
+
+        foreach ($configs as $i => $cfg) {
+            if (is_array($cfg) && (string)($cfg['id'] ?? '') === $id) {
+                $configIdx = $i;
+                $config = $cfg;
+                break;
+            }
+        }
+
+        if ($config === null || $configIdx === null) {
+            return new Response('Config not found.', 404);
+        }
+
+        $requestDef = (array)($config['request'] ?? []);
+        $authProfileId = trim((string)($requestDef['authProfileId'] ?? ''));
+
+        $authHeaderValue = 'Bearer '.$accessToken;
+        if ($tokenType !== '' && strtolower($tokenType) !== 'bearer') {
+            $authHeaderValue = ucfirst(strtolower($tokenType)).' '.$accessToken;
+        }
+
+        if ($authProfileId !== '') {
+            $profiles = (array)($collection['authProfiles'] ?? []);
+            foreach ($profiles as $pi => $p) {
+                if (!is_array($p) || (string)($p['id'] ?? '') !== $authProfileId) {
+                    continue;
+                }
+
+                $headers = (array)($p['headers'] ?? []);
+                $updated = false;
+
+                foreach ($headers as $hi => $h) {
+                    if (!is_array($h)) {
+                        continue;
+                    }
+
+                    $name = strtolower(trim((string)($h['name'] ?? '')));
+                    $kind = (string)($h['secretKind'] ?? '');
+                    if ($kind === 'bearer' || $name === 'authorization') {
+                        $h['name'] = 'Authorization';
+                        $h['value'] = $authHeaderValue;
+                        $h['isSecret'] = true;
+                        $h['secretKind'] = 'bearer';
+                        $h['exportPolicy'] = $h['exportPolicy'] ?? 'prompt';
+                        $h['placeholder'] = $h['placeholder'] ?? sprintf('{{AQTO_SECRET:%s}}', $h['secretRef'] ?? ('secrets.'.Uuid::v4()->toRfc4122()));
+                        $h['secretRef'] = $h['secretRef'] ?? ('secrets.'.Uuid::v4()->toRfc4122());
+                        $headers[$hi] = $h;
+                        $updated = true;
+                        break;
+                    }
+                }
+
+                if (!$updated) {
+                    $secretRef = 'secrets.'.Uuid::v4()->toRfc4122();
+                    $headers[] = [
+                        'name' => 'Authorization',
+                        'value' => $authHeaderValue,
+                        'isSecret' => true,
+                        'secretKind' => 'bearer',
+                        'secretRef' => $secretRef,
+                        'exportPolicy' => 'prompt',
+                        'placeholder' => sprintf('{{AQTO_SECRET:%s}}', $secretRef),
+                    ];
+                }
+
+                $p['headers'] = array_values($headers);
+
+                // Persist OAuth token state on the auth profile (v5+).
+                $oauth = $p['oauth'] ?? null;
+                if (is_array($oauth)) {
+                    $oauth['accessToken'] = $accessToken;
+                    $oauth['tokenType'] = $tokenType !== '' ? strtolower($tokenType) : 'bearer';
+                    $oauth['updatedAt'] = (new \DateTimeImmutable())->format(DATE_ATOM);
+                    if ($refreshToken !== '') {
+                        $oauth['refreshToken'] = $refreshToken;
+                    }
+                    if ($expiresIn !== null && is_numeric($expiresIn) && (int)$expiresIn > 0) {
+                        $oauth['expiresAt'] = (new \DateTimeImmutable())->modify(sprintf('+%d seconds', (int)$expiresIn))->format(DATE_ATOM);
+                    }
+                    $p['oauth'] = $oauth;
+                }
+
+                $profiles[$pi] = $p;
+                $collection['authProfiles'] = array_values($profiles);
+                $store->saveCollection($collection);
+
+                return new Response('OK', 200);
+            }
+
+            return new Response('Auth profile not found.', 404);
+        }
+
+        // Inline auth: update or add Authorization header.
+        $headers = (array)($requestDef['headers'] ?? []);
+        $updated = false;
+
+        foreach ($headers as $hi => $h) {
+            if (!is_array($h)) {
+                continue;
+            }
+            $name = strtolower(trim((string)($h['name'] ?? '')));
+            $kind = (string)($h['secretKind'] ?? '');
+            if ($kind === 'bearer' || $name === 'authorization') {
+                $h['name'] = 'Authorization';
+                $h['value'] = $authHeaderValue;
+                $h['isSecret'] = true;
+                $h['secretKind'] = 'bearer';
+                $h['exportPolicy'] = $h['exportPolicy'] ?? 'prompt';
+                $h['placeholder'] = $h['placeholder'] ?? sprintf('{{AQTO_SECRET:%s}}', $h['secretRef'] ?? ('secrets.'.Uuid::v4()->toRfc4122()));
+                $h['secretRef'] = $h['secretRef'] ?? ('secrets.'.Uuid::v4()->toRfc4122());
+                $headers[$hi] = $h;
+                $updated = true;
+                break;
+            }
+        }
+
+        if (!$updated) {
+            $secretRef = 'secrets.'.Uuid::v4()->toRfc4122();
+            $headers[] = [
+                'name' => 'Authorization',
+                'value' => $authHeaderValue,
+                'isSecret' => true,
+                'secretKind' => 'bearer',
+                'secretRef' => $secretRef,
+                'exportPolicy' => 'prompt',
+                'placeholder' => sprintf('{{AQTO_SECRET:%s}}', $secretRef),
+            ];
+        }
+
+        $requestDef['headers'] = array_values($headers);
+        $config['request'] = $requestDef;
+        $configs[$configIdx] = $config;
+        $collection['configs'] = array_values($configs);
+        $store->saveCollection($collection);
+
+        return new Response('OK', 200);
+    }
+
     private function renderEditConfigError(string $message): Response
     {
         $response = $this->render('partials/config_edit_error.html.twig', [
