@@ -41,6 +41,32 @@ window.aqtoCollapsible = function aqtoCollapsible(id, defaultOpen = true) {
   };
 };
 
+window.aqtoAuthProfileEditor = function aqtoAuthProfileEditor(initRowsJson) {
+  let rows = [];
+  try {
+    if (typeof initRowsJson === 'string' && initRowsJson.trim() !== '') {
+      rows = JSON.parse(initRowsJson);
+    }
+  } catch {
+    rows = [];
+  }
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    rows = [{ name: '', value: '', isSecret: false, secretKind: 'custom', exportPolicy: 'prompt', secretRef: '', placeholder: '' }];
+  }
+
+  return {
+    rows,
+    addRow() {
+      this.rows.push({ name: '', value: '', isSecret: false, secretKind: 'custom', exportPolicy: 'prompt', secretRef: '', placeholder: '' });
+    },
+    removeRow(i) {
+      if (this.rows.length <= 1) return;
+      this.rows.splice(i, 1);
+    },
+  };
+};
+
 Alpine.start();
 
 function applyHtmlToConfigList(html) {
