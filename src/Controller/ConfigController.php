@@ -443,6 +443,51 @@ final class ConfigController extends AbstractController
         ]);
     }
 
+    #[Route('/configs/{id}/duplicate', name: 'configs_duplicate', methods: ['POST'])]
+    public function duplicate(string $id, ConfigStore $store, ConfigTreeBuilder $treeBuilder): Response
+    {
+        $collection = $store->loadCollection();
+        $configs = (array)($collection['configs'] ?? []);
+
+        $source = null;
+        foreach ($configs as $cfg) {
+            if (is_array($cfg) && (string)($cfg['id'] ?? '') === $id) {
+                $source = $cfg;
+                break;
+            }
+        }
+
+        if ($source === null) {
+            return new Response('Config not found.', 404);
+        }
+
+        $folderId = $source['folderId'] ?? null;
+        $folderId = is_string($folderId) ? $folderId : null;
+
+        $copy = $source;
+        $copy['id'] = 'cfg_'.Uuid::v4()->toRfc4122();
+        $copy['name'] = $this->makeCopyName((string)($source['name'] ?? 'Config'), $configs);
+        $copy['sort'] = $this->nextSortForFolder($folderId, $configs);
+        $copy['folderId'] = $folderId;
+
+        $collection['configs'] = array_values(array_merge($configs, [$copy]));
+        $store->saveCollection($collection);
+
+        $response = $this->render('partials/config_list.html.twig', [
+            'collection' => $collection,
+            'tree' => $treeBuilder->build($collection),
+        ]);
+
+        $response->headers->set('HX-Trigger', json_encode([
+            'config-duplicated' => [
+                'id' => (string)$copy['id'],
+                'name' => (string)$copy['name'],
+            ],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        return $response;
+    }
+
     #[Route('/configs/{id}/apply-bearer', name: 'configs_apply_bearer', methods: ['POST'])]
     public function applyBearer(string $id, Request $request, ConfigStore $store): Response
     {
@@ -678,6 +723,67 @@ final class ConfigController extends AbstractController
         $response->headers->set('Cache-Control', 'no-store');
 
         return $response;
+    }
+
+    /**
+     * @param array<int, mixed> $configs
+     */
+    private function makeCopyName(string $base, array $configs): string
+    {
+        $base = trim($base);
+        if ($base === '') {
+            $base = 'Untitled';
+        }
+
+        $existing = [];
+        foreach ($configs as $cfg) {
+            if (!is_array($cfg)) {
+                continue;
+            }
+            $name = trim((string)($cfg['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $existing[strtolower($name)] = true;
+        }
+
+        $candidate = $base.' (copy)';
+        if (!isset($existing[strtolower($candidate)])) {
+            return $candidate;
+        }
+
+        for ($i = 2; $i <= 50; $i++) {
+            $candidate = sprintf('%s (copy %d)', $base, $i);
+            if (!isset($existing[strtolower($candidate)])) {
+                return $candidate;
+            }
+        }
+
+        return $base.' (copy '.Uuid::v4()->toRfc4122().')';
+    }
+
+    /**
+     * @param array<int, mixed> $configs
+     */
+    private function nextSortForFolder(?string $folderId, array $configs): int
+    {
+        $max = 0;
+        foreach ($configs as $cfg) {
+            if (!is_array($cfg)) {
+                continue;
+            }
+            $cfgFolder = $cfg['folderId'] ?? null;
+            $cfgFolder = is_string($cfgFolder) ? $cfgFolder : null;
+            if ($cfgFolder !== $folderId) {
+                continue;
+            }
+            $sort = (int)($cfg['sort'] ?? 0);
+            if ($sort > $max) {
+                $max = $sort;
+            }
+        }
+
+        return $max + 10;
     }
 
     #[Route('/configs/{id}/env', name: 'configs_set_env', methods: ['POST'])]

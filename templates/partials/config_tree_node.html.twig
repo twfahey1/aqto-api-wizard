@@ -252,6 +252,23 @@
             </div>
 
             <div class="flex items-center gap-1">
+                <form
+                    hx-post="{{ path('configs_duplicate', {id: cfg.id}) }}"
+                    hx-target="#configList"
+                    hx-swap="innerHTML"
+                >
+                    <button
+                        type="submit"
+                        class="p-1 rounded border bg-white hover:bg-slate-100"
+                        title="Duplicate"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                            <path d="M4 4a2 2 0 012-2h5a1 1 0 010 2H6v10a2 2 0 002 2h6a2 2 0 002-2V8a1 1 0 112 0v6a4 4 0 01-4 4H8a4 4 0 01-4-4V4z" />
+                            <path d="M12 2a1 1 0 00-1 1v2H9a1 1 0 000 2h2v2a1 1 0 102 0V7h2a1 1 0 100-2h-2V3a1 1 0 00-1-1z" />
+                        </svg>
+                    </button>
+                </form>
+
                 <button
                     type="button"
                     class="p-1 rounded border bg-white hover:bg-slate-100"
