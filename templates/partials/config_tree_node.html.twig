@@ -74,258 +74,260 @@
         data-type="config"
         data-id="{{ cfg.id }}"
     >
-        <div class="flex items-start justify-between gap-3">
-            <div class="flex items-start gap-2 min-w-0 flex-1">
-                <span class="aqto-drag-handle cursor-grab text-slate-500 hover:text-slate-700 mt-0.5" title="Drag config">
+        <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+                <span class="aqto-drag-handle cursor-grab text-slate-500 hover:text-slate-700" title="Drag config">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                         <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm-1 7a1 1 0 100-2 1 1 0 000 2zm9-13a1 1 0 11-2 0 1 1 0 012 0zm0 6a1 1 0 11-2 0 1 1 0 012 0zm-1 7a1 1 0 100-2 1 1 0 000 2z" />
                     </svg>
                 </span>
 
-                {# Reuse existing config UI, but keep the execute button as the primary click target #}
-                <form
-                    class="min-w-0 flex-1"
-                    hx-post="{{ path('execute') }}"
-                    hx-target="#executeResult"
-                    hx-swap="innerHTML"
-                >
-                    <input type="hidden" name="configId" value="{{ cfg.id }}">
-                    <button class="text-left w-full" type="submit">
-                        <div class="font-medium text-sm truncate">{{ cfg.name }}</div>
-                        <div class="text-xs text-slate-600 truncate">
-                            {{ cfg.request.method }}
-                            {% set url = cfg.request.urls[cfg.request.activeEnv] ?? cfg.request.urls.dev ?? cfg.request.urls.live ?? '' %}
-                            {{ url }}
-                            <span class="ml-1">({{ cfg.request.activeEnv }})</span>
-                        </div>
+                <div class="flex items-center gap-1 flex-wrap">
+                    <form
+                        hx-post="{{ path('configs_duplicate', {id: cfg.id}) }}"
+                        hx-target="#configList"
+                        hx-swap="innerHTML"
+                    >
+                        <button
+                            type="submit"
+                            class="p-1 rounded border bg-white hover:bg-slate-100"
+                            title="Duplicate"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                <path d="M4 4a2 2 0 012-2h5a1 1 0 010 2H6v10a2 2 0 002 2h6a2 2 0 002-2V8a1 1 0 112 0v6a4 4 0 01-4 4H8a4 4 0 01-4-4V4z" />
+                                <path d="M12 2a1 1 0 00-1 1v2H9a1 1 0 000 2h2v2a1 1 0 102 0V7h2a1 1 0 100-2h-2V3a1 1 0 00-1-1z" />
+                            </svg>
+                        </button>
+                    </form>
 
-                        {# Auth summary #}
-                        {% set authSummary = 'Auth: none' %}
-                        {% set authKind = 'none' %}
-                        {% set authProfileName = '' %}
-
-                        {% set authProfile = null %}
-                        {% if (cfg.request.authProfileId ?? '') != '' %}
-                            {% for p in collection.authProfiles|default([]) %}
-                                {% if (p.id ?? '') == cfg.request.authProfileId %}
-                                    {% set authProfile = p %}
-                                    {% set authProfileName = p.name ?? '' %}
-                                {% endif %}
-                            {% endfor %}
-                        {% endif %}
-
-                        {% if authProfile is not null %}
-                            {# Determine kind from auth profile headers #}
-                            {% set profileHeaders = authProfile.headers|default([]) %}
-                            {% for h in profileHeaders %}
-                                {% if (h.secretKind ?? '') == 'bearer' %}{% set authKind = 'bearer' %}{% endif %}
-                                {% if (h.secretKind ?? '') == 'apiKey' %}{% set authKind = 'apiKey' %}{% endif %}
-                                {% if authKind == 'none' and (h.name ?? '') == 'Authorization' %}{% set authKind = 'bearer' %}{% endif %}
-                            {% endfor %}
-                            {% set authSummary = 'Auth: profile' ~ (authProfileName ? ' — ' ~ authProfileName : '') ~ (authKind != 'none' ? ' (' ~ authKind ~ ')' : '') %}
-                        {% else %}
-                            {# Determine kind from inline headers #}
-                            {% for h in cfg.request.headers|default([]) %}
-                                {% if (h.secretKind ?? '') == 'bearer' %}{% set authKind = 'bearer' %}{% endif %}
-                                {% if (h.secretKind ?? '') == 'apiKey' %}{% set authKind = 'apiKey' %}{% endif %}
-                                {% if authKind == 'none' and (h.name ?? '') == 'Authorization' %}{% set authKind = 'bearer' %}{% endif %}
-                            {% endfor %}
-                            {% if authKind != 'none' %}
-                                {% set authSummary = 'Auth: inline (' ~ authKind ~ ')' %}
-                            {% endif %}
-                        {% endif %}
-
-                        <div class="mt-1 text-[11px] text-slate-600" title="{{ authSummary }}">
-                            {{ authSummary }}
-                        </div>
-
-                        {# OAuth status (auth profile must have oauth metadata) #}
-                        {% set oauthMeta = null %}
-                        {% if authProfile is not null and (authProfile.oauth ?? null) is not null %}
-                            {% set oauthMeta = authProfile.oauth %}
-                        {% endif %}
+                    <button
+                        type="button"
+                        class="p-1 rounded border bg-white hover:bg-slate-100"
+                        title="Edit"
+                        hx-get="{{ path('configs_edit', {id: cfg.id}) }}"
+                        hx-target="#configModalBody"
+                        hx-swap="innerHTML"
+                        onclick="var el=document.getElementById('configModalBody'); if(el){el.innerHTML='Loading…';} document.dispatchEvent(new CustomEvent('config-modal-open'));"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a1 1 0 01-.293.207l-3 1.2a1 1 0 01-1.313-1.313l1.2-3a1 1 0 01.207-.293l8.5-8.5z" />
+                            <path d="M11.379 5.793L14.207 8.62" />
+                        </svg>
                     </button>
 
-                    {% if oauthMeta is not null and ((oauthMeta.tokenUrl ?? '') != '' or (oauthMeta.refreshUrl ?? '') != '') %}
-                        {% set storedTokenHint = '' %}
-                        {% if (oauthMeta.accessToken ?? '') != '' %}
-                            {% set _t = oauthMeta.accessToken %}
-                            {% set storedTokenHint = _t|length > 10 ? (_t|slice(0,4) ~ '…' ~ _t|slice(-4)) : _t %}
+                    <form
+                        hx-post="{{ path('configs_delete', {id: cfg.id}) }}"
+                        hx-target="#configList"
+                        hx-swap="innerHTML"
+                        hx-confirm="Delete this config?"
+                    >
+                        <button
+                            type="submit"
+                            class="p-1 rounded border bg-white hover:bg-red-50 hover:border-red-200 text-red-700"
+                            title="Delete"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                <path fill-rule="evenodd" d="M8.5 2a1 1 0 00-1 1v1H5a1 1 0 000 2h.293l.854 11.11A2 2 0 008.14 19h3.72a2 2 0 001.993-1.89L14.707 6H15a1 1 0 100-2h-2.5V3a1 1 0 00-1-1h-3zM9.5 4V3h1v1h-1z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </form>
+
+                    <form
+                        hx-post="{{ path('configs_set_env', {id: cfg.id}) }}"
+                        hx-target="#configList"
+                        hx-swap="innerHTML"
+                    >
+                        <input type="hidden" name="env" value="dev">
+                        <button
+                            class="px-2 py-1 text-xs rounded border {{ cfg.request.activeEnv == 'dev' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white hover:bg-slate-100' }}"
+                            type="submit"
+                        >Dev</button>
+                    </form>
+                    <form
+                        hx-post="{{ path('configs_set_env', {id: cfg.id}) }}"
+                        hx-target="#configList"
+                        hx-swap="innerHTML"
+                    >
+                        <input type="hidden" name="env" value="live">
+                        <button
+                            class="px-2 py-1 text-xs rounded border {{ cfg.request.activeEnv == 'live' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white hover:bg-slate-100' }}"
+                            type="submit"
+                        >Live</button>
+                    </form>
+                </div>
+            </div>
+
+            {# Reuse existing config UI, but keep the execute button as the primary click target #}
+            <form
+                class="min-w-0"
+                hx-post="{{ path('execute') }}"
+                hx-target="#executeResult"
+                hx-swap="innerHTML"
+            >
+                <input type="hidden" name="configId" value="{{ cfg.id }}">
+
+                <button class="text-left w-full" type="submit">
+                    <div class="font-medium text-sm truncate">{{ cfg.name }}</div>
+                </button>
+
+                <div class="text-xs text-slate-600 truncate">
+                    {{ cfg.request.method }}
+                    {% set url = cfg.request.urls[cfg.request.activeEnv] ?? cfg.request.urls.dev ?? cfg.request.urls.live ?? '' %}
+                    {{ url }}
+                    <span class="ml-1">({{ cfg.request.activeEnv }})</span>
+                </div>
+
+                {# Auth summary #}
+                {% set authSummary = 'Auth: none' %}
+                {% set authKind = 'none' %}
+                {% set authProfileName = '' %}
+
+                {% set authProfile = null %}
+                {% if (cfg.request.authProfileId ?? '') != '' %}
+                    {% for p in collection.authProfiles|default([]) %}
+                        {% if (p.id ?? '') == cfg.request.authProfileId %}
+                            {% set authProfile = p %}
+                            {% set authProfileName = p.name ?? '' %}
                         {% endif %}
-                        <div
-                            class="mt-1 flex items-center gap-2"
-                            x-data="{
-                                expiresAt: '{{ (oauthMeta.expiresAt ?? '')|e('js') }}',
-                                tokenHint: '{{ storedTokenHint|e('js') }}',
-                                updatedAt: '{{ (oauthMeta.updatedAt ?? '')|e('js') }}',
-                                isExpired: false,
-                                load() {
-                                    try {
-                                        const key = 'aqto.oauth.status.{{ cfg.id }}.{{ cfg.request.activeEnv }}';
-                                        const raw = localStorage.getItem(key);
-                                        if (!raw) {
-                                            if (this.expiresAt) {
-                                                this.isExpired = Date.now() > new Date(this.expiresAt).getTime();
-                                            } else {
-                                                this.isExpired = false;
-                                            }
-                                            return;
-                                        }
-                                        const data = JSON.parse(raw);
-                                        this.expiresAt = data.expiresAt || '';
-                                        this.tokenHint = data.tokenHint || '';
-                                        this.updatedAt = data.updatedAt || '';
+                    {% endfor %}
+                {% endif %}
+
+                {% if authProfile is not null %}
+                    {# Determine kind from auth profile headers #}
+                    {% set profileHeaders = authProfile.headers|default([]) %}
+                    {% for h in profileHeaders %}
+                        {% if (h.secretKind ?? '') == 'bearer' %}{% set authKind = 'bearer' %}{% endif %}
+                        {% if (h.secretKind ?? '') == 'apiKey' %}{% set authKind = 'apiKey' %}{% endif %}
+                        {% if authKind == 'none' and (h.name ?? '') == 'Authorization' %}{% set authKind = 'bearer' %}{% endif %}
+                    {% endfor %}
+                    {% set authSummary = 'Auth: profile' ~ (authProfileName ? ' — ' ~ authProfileName : '') ~ (authKind != 'none' ? ' (' ~ authKind ~ ')' : '') %}
+                {% else %}
+                    {# Determine kind from inline headers #}
+                    {% for h in cfg.request.headers|default([]) %}
+                        {% if (h.secretKind ?? '') == 'bearer' %}{% set authKind = 'bearer' %}{% endif %}
+                        {% if (h.secretKind ?? '') == 'apiKey' %}{% set authKind = 'apiKey' %}{% endif %}
+                        {% if authKind == 'none' and (h.name ?? '') == 'Authorization' %}{% set authKind = 'bearer' %}{% endif %}
+                    {% endfor %}
+                    {% if authKind != 'none' %}
+                        {% set authSummary = 'Auth: inline (' ~ authKind ~ ')' %}
+                    {% endif %}
+                {% endif %}
+
+                <div class="text-[11px] text-slate-600" title="{{ authSummary }}">
+                    {{ authSummary }}
+                </div>
+
+                {# OAuth status (auth profile must have oauth metadata) #}
+                {% set oauthMeta = null %}
+                {% if authProfile is not null and (authProfile.oauth ?? null) is not null %}
+                    {% set oauthMeta = authProfile.oauth %}
+                {% endif %}
+
+                {% if oauthMeta is not null and ((oauthMeta.tokenUrl ?? '') != '' or (oauthMeta.refreshUrl ?? '') != '') %}
+                    {% set storedTokenHint = '' %}
+                    {% if (oauthMeta.accessToken ?? '') != '' %}
+                        {% set _t = oauthMeta.accessToken %}
+                        {% set storedTokenHint = _t|length > 10 ? (_t|slice(0,4) ~ '…' ~ _t|slice(-4)) : _t %}
+                    {% endif %}
+                    <div
+                        class="mt-1 flex items-center gap-2"
+                        x-data="{
+                            expiresAt: '{{ (oauthMeta.expiresAt ?? '')|e('js') }}',
+                            tokenHint: '{{ storedTokenHint|e('js') }}',
+                            updatedAt: '{{ (oauthMeta.updatedAt ?? '')|e('js') }}',
+                            isExpired: false,
+                            load() {
+                                try {
+                                    const key = 'aqto.oauth.status.{{ cfg.id }}.{{ cfg.request.activeEnv }}';
+                                    const raw = localStorage.getItem(key);
+                                    if (!raw) {
                                         if (this.expiresAt) {
                                             this.isExpired = Date.now() > new Date(this.expiresAt).getTime();
                                         } else {
                                             this.isExpired = false;
                                         }
-                                    } catch (e) {
-                                        this.expiresAt = '';
-                                        this.tokenHint = '';
-                                        this.updatedAt = '';
+                                        return;
+                                    }
+                                    const data = JSON.parse(raw);
+                                    this.expiresAt = data.expiresAt || '';
+                                    this.tokenHint = data.tokenHint || '';
+                                    this.updatedAt = data.updatedAt || '';
+                                    if (this.expiresAt) {
+                                        this.isExpired = Date.now() > new Date(this.expiresAt).getTime();
+                                    } else {
                                         this.isExpired = false;
                                     }
-                                },
-                                fmt() {
-                                    if (!this.expiresAt) return '';
-                                    try { return new Date(this.expiresAt).toLocaleString(); } catch { return this.expiresAt; }
-                                },
-                                fmtUpdated() {
-                                    if (!this.updatedAt) return '';
-                                    try { return new Date(this.updatedAt).toLocaleString(); } catch { return this.updatedAt; }
-                                },
-                                init() {
-                                    this.load();
-                                    window.addEventListener('aqto:oauth-status-updated', (ev) => {
-                                        const d = ev?.detail || {};
-                                        if (!d.configId || d.configId === '{{ cfg.id }}') {
-                                            this.load();
-                                        }
-                                    });
+                                } catch (e) {
+                                    this.expiresAt = '';
+                                    this.tokenHint = '';
+                                    this.updatedAt = '';
+                                    this.isExpired = false;
                                 }
-                            }"
-                            x-init="init()"
-                        >
-                            <div class="text-[11px]" :class="isExpired ? 'text-red-700' : 'text-slate-600'">
-                                <span class="font-medium">OAuth</span>
-                                <template x-if="tokenHint">
-                                    <span class="ml-1">— Token <span class="font-mono" x-text="tokenHint"></span></span>
-                                </template>
-                                <template x-if="expiresAt">
-                                    <span>
-                                        —
-                                        <span x-text="isExpired ? 'Expired' : ('Expires ' + fmt())"></span>
-                                    </span>
-                                </template>
-                                <template x-if="!expiresAt">
-                                    <span>— No expiry info yet</span>
-                                </template>
-                                <template x-if="updatedAt">
-                                    <span class="ml-1" :class="isExpired ? 'text-red-700' : 'text-slate-500'">
-                                        (updated <span class="font-mono" x-text="fmtUpdated()"></span>)
-                                    </span>
-                                </template>
-                            </div>
-
-                            <button
-                                type="button"
-                                class="p-1 rounded border bg-white hover:bg-slate-100"
-                                title="Refresh token"
-                                hx-post="{{ path('oauth_refresh_from_config') }}"
-                                hx-swap="none"
-                                :hx-vals="JSON.stringify({
-                                    origin: 'list',
-                                    mode: 'refresh',
-                                    applyEnv: '{{ cfg.request.activeEnv }}',
-                                    configId: '{{ cfg.id }}',
-                                    configName: '{{ cfg.name|e('js') }}',
-                                    authProfileId: '{{ authProfile.id|default('') }}'
-                                })"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                                    <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466.75.75 0 011.06-1.06 4 4 0 006.662-1.79h-1.58a.75.75 0 010-1.5h2.75a.75.75 0 01.75.75v2.75a.75.75 0 01-1.5 0v-1.616z" clip-rule="evenodd" />
-                                    <path fill-rule="evenodd" d="M4.688 8.576a5.5 5.5 0 019.201-2.466.75.75 0 11-1.06 1.06 4 4 0 00-6.662 1.79h1.58a.75.75 0 010 1.5h-2.75a.75.75 0 01-.75-.75V6.96a.75.75 0 011.5 0v1.616z" clip-rule="evenodd" />
-                                </svg>
-                            </button>
+                            },
+                            fmt() {
+                                if (!this.expiresAt) return '';
+                                try { return new Date(this.expiresAt).toLocaleString(); } catch { return this.expiresAt; }
+                            },
+                            fmtUpdated() {
+                                if (!this.updatedAt) return '';
+                                try { return new Date(this.updatedAt).toLocaleString(); } catch { return this.updatedAt; }
+                            },
+                            init() {
+                                this.load();
+                                window.addEventListener('aqto:oauth-status-updated', (ev) => {
+                                    const d = ev?.detail || {};
+                                    if (!d.configId || d.configId === '{{ cfg.id }}') {
+                                        this.load();
+                                    }
+                                });
+                            }
+                        }"
+                        x-init="init()"
+                    >
+                        <div class="text-[11px]" :class="isExpired ? 'text-red-700' : 'text-slate-600'">
+                            <span class="font-medium">OAuth</span>
+                            <template x-if="tokenHint">
+                                <span class="ml-1">— Token <span class="font-mono" x-text="tokenHint"></span></span>
+                            </template>
+                            <template x-if="expiresAt">
+                                <span>
+                                    —
+                                    <span x-text="isExpired ? 'Expired' : ('Expires ' + fmt())"></span>
+                                </span>
+                            </template>
+                            <template x-if="!expiresAt">
+                                <span>— No expiry info yet</span>
+                            </template>
+                            <template x-if="updatedAt">
+                                <span class="ml-1" :class="isExpired ? 'text-red-700' : 'text-slate-500'">
+                                    (updated <span class="font-mono" x-text="fmtUpdated()"></span>)
+                                </span>
+                            </template>
                         </div>
-                    {% endif %}
-                </form>
-            </div>
 
-            <div class="flex items-center gap-1">
-                <form
-                    hx-post="{{ path('configs_duplicate', {id: cfg.id}) }}"
-                    hx-target="#configList"
-                    hx-swap="innerHTML"
-                >
-                    <button
-                        type="submit"
-                        class="p-1 rounded border bg-white hover:bg-slate-100"
-                        title="Duplicate"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                            <path d="M4 4a2 2 0 012-2h5a1 1 0 010 2H6v10a2 2 0 002 2h6a2 2 0 002-2V8a1 1 0 112 0v6a4 4 0 01-4 4H8a4 4 0 01-4-4V4z" />
-                            <path d="M12 2a1 1 0 00-1 1v2H9a1 1 0 000 2h2v2a1 1 0 102 0V7h2a1 1 0 100-2h-2V3a1 1 0 00-1-1z" />
-                        </svg>
-                    </button>
-                </form>
-
-                <button
-                    type="button"
-                    class="p-1 rounded border bg-white hover:bg-slate-100"
-                    title="Edit"
-                    hx-get="{{ path('configs_edit', {id: cfg.id}) }}"
-                    hx-target="#configModalBody"
-                    hx-swap="innerHTML"
-                    onclick="var el=document.getElementById('configModalBody'); if(el){el.innerHTML='Loading…';} document.dispatchEvent(new CustomEvent('config-modal-open'));"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a1 1 0 01-.293.207l-3 1.2a1 1 0 01-1.313-1.313l1.2-3a1 1 0 01.207-.293l8.5-8.5z" />
-                        <path d="M11.379 5.793L14.207 8.62" />
-                    </svg>
-                </button>
-
-                <form
-                    hx-post="{{ path('configs_delete', {id: cfg.id}) }}"
-                    hx-target="#configList"
-                    hx-swap="innerHTML"
-                    hx-confirm="Delete this config?"
-                >
-                    <button
-                        type="submit"
-                        class="p-1 rounded border bg-white hover:bg-red-50 hover:border-red-200 text-red-700"
-                        title="Delete"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
-                            <path fill-rule="evenodd" d="M8.5 2a1 1 0 00-1 1v1H5a1 1 0 000 2h.293l.854 11.11A2 2 0 008.14 19h3.72a2 2 0 001.993-1.89L14.707 6H15a1 1 0 100-2h-2.5V3a1 1 0 00-1-1h-3zM9.5 4V3h1v1h-1z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                </form>
-
-                <form
-                    hx-post="{{ path('configs_set_env', {id: cfg.id}) }}"
-                    hx-target="#configList"
-                    hx-swap="innerHTML"
-                >
-                    <input type="hidden" name="env" value="dev">
-                    <button
-                        class="px-2 py-1 text-xs rounded border {{ cfg.request.activeEnv == 'dev' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white hover:bg-slate-100' }}"
-                        type="submit"
-                    >Dev</button>
-                </form>
-                <form
-                    hx-post="{{ path('configs_set_env', {id: cfg.id}) }}"
-                    hx-target="#configList"
-                    hx-swap="innerHTML"
-                >
-                    <input type="hidden" name="env" value="live">
-                    <button
-                        class="px-2 py-1 text-xs rounded border {{ cfg.request.activeEnv == 'live' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white hover:bg-slate-100' }}"
-                        type="submit"
-                    >Live</button>
-                </form>
-            </div>
+                        <button
+                            type="button"
+                            class="p-1 rounded border bg-white hover:bg-slate-100"
+                            title="Refresh token"
+                            hx-post="{{ path('oauth_refresh_from_config') }}"
+                            hx-swap="none"
+                            :hx-vals="JSON.stringify({
+                                origin: 'list',
+                                mode: 'refresh',
+                                applyEnv: '{{ cfg.request.activeEnv }}',
+                                configId: '{{ cfg.id }}',
+                                configName: '{{ cfg.name|e('js') }}',
+                                authProfileId: '{{ authProfile.id|default('') }}'
+                            })"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466.75.75 0 011.06-1.06 4 4 0 006.662-1.79h-1.58a.75.75 0 010-1.5h2.75a.75.75 0 01.75.75v2.75a.75.75 0 01-1.5 0v-1.616z" clip-rule="evenodd" />
+                                <path fill-rule="evenodd" d="M4.688 8.576a5.5 5.5 0 019.201-2.466.75.75 0 11-1.06 1.06 4 4 0 00-6.662 1.79h1.58a.75.75 0 010 1.5h-2.75a.75.75 0 01-.75-.75V6.96a.75.75 0 011.5 0v1.616z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                {% endif %}
+            </form>
         </div>
     </li>
 {% endif %}
