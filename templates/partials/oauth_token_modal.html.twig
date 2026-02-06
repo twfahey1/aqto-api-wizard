@@ -1,5 +1,18 @@
 {% set _mode = mode|default('fetch') %}
 {% set _oauth = oauthDefaults|default({}) %}
+{% set _grant = (_oauth.grantType ?? 'client_credentials') %}
+{% set _fetchRows = [
+    { key: 'grant_type', value: _grant },
+    { key: 'client_id', value: (_oauth.clientId ?? '') },
+    { key: 'client_secret', value: (_oauth.clientSecret ?? '') },
+    { key: 'scope', value: (_oauth.scope ?? '') },
+] %}
+{% if _grant == 'password' %}
+    {% set _fetchRows = _fetchRows|merge([
+        { key: 'username', value: (_oauth.username ?? '') },
+        { key: 'password', value: (_oauth.password ?? '') },
+    ]) %}
+{% endif %}
 <div class="p-4" x-data="{
     tokenBodyMode: 'form',
     applyEnv: '{{ applyEnv|default('dev') }}',
@@ -12,12 +25,7 @@
             { key: 'client_secret', value: (_oauth.clientSecret ?? '') },
             { key: 'scope', value: (_oauth.scope ?? '') },
         ]
-        : [
-            { key: 'grant_type', value: 'client_credentials' },
-            { key: 'client_id', value: (_oauth.clientId ?? '') },
-            { key: 'client_secret', value: (_oauth.clientSecret ?? '') },
-            { key: 'scope', value: (_oauth.scope ?? '') },
-        ])|json_encode|raw }},
+        : _fetchRows)|json_encode|raw }},
     addRow() { this.rows.push({ key: '', value: '' }); },
     removeRow(i) { if (this.rows.length <= 1) return; this.rows.splice(i, 1); },
 }">

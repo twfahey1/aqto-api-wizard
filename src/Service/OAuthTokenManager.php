@@ -136,15 +136,32 @@ final class OAuthTokenManager
             }
 
             if (!$didUpdate) {
+                $grantType = strtolower(trim((string)($oauth['grantType'] ?? 'client_credentials')));
+                if ($grantType === '') {
+                    $grantType = 'client_credentials';
+                }
+
                 $clientId = trim((string)($oauth['clientId'] ?? ''));
                 $clientSecret = trim((string)($oauth['clientSecret'] ?? ''));
 
-                if ($clientId === '' || $clientSecret === '' || $this->isPlaceholderSecret($clientSecret)) {
-                    return [
-                        'collection' => $collection,
-                        'config' => $config,
-                        'error' => 'OAuth credentials missing on auth profile (client_id/client_secret). Open the OAuth modal once and enable “Remember credentials”.',
-                    ];
+                if ($grantType !== 'password') {
+                    if ($clientId === '' || $clientSecret === '' || $this->isPlaceholderSecret($clientSecret)) {
+                        return [
+                            'collection' => $collection,
+                            'config' => $config,
+                            'error' => 'OAuth credentials missing on auth profile (client_id/client_secret). Open the OAuth modal once and enable “Remember credentials”.',
+                        ];
+                    }
+                } else {
+                    $username = trim((string)($oauth['username'] ?? ''));
+                    $password = trim((string)($oauth['password'] ?? ''));
+                    if ($username === '' || $password === '' || $this->isPlaceholderSecret($password)) {
+                        return [
+                            'collection' => $collection,
+                            'config' => $config,
+                            'error' => 'OAuth password grant requires username/password on auth profile. Open the OAuth modal once and enable “Remember credentials”.',
+                        ];
+                    }
                 }
 
                 if ($tokenUrl === '') {
@@ -155,9 +172,13 @@ final class OAuthTokenManager
                     ];
                 }
 
+                $payload = $grantType === 'password'
+                    ? $this->buildPasswordCredentialsPayload($oauth)
+                    : $this->buildClientCredentialsPayload($oauth);
+
                 $resp = $this->requestToken(
                     $tokenUrl,
-                    $this->buildClientCredentialsPayload($oauth),
+                    $payload,
                     $tokenUrl,
                     $refreshUrl,
                 );
@@ -322,20 +343,42 @@ final class OAuthTokenManager
         }
 
         if (!$didUpdate) {
+            $grantType = strtolower(trim((string)($oauth['grantType'] ?? 'client_credentials')));
+            if ($grantType === '') {
+                $grantType = 'client_credentials';
+            }
+
             $clientId = trim((string)($oauth['clientId'] ?? ''));
             $clientSecret = trim((string)($oauth['clientSecret'] ?? ''));
 
-            if ($clientId === '' || $clientSecret === '' || $this->isPlaceholderSecret($clientSecret)) {
-                $msg = 'OAuth credentials missing on auth profile (client_id/client_secret). Open the OAuth modal once and enable “Remember credentials”.';
-                if ($error) {
-                    $msg .= ' Refresh also failed: '.$error;
-                }
+            if ($grantType !== 'password') {
+                if ($clientId === '' || $clientSecret === '' || $this->isPlaceholderSecret($clientSecret)) {
+                    $msg = 'OAuth credentials missing on auth profile (client_id/client_secret). Open the OAuth modal once and enable “Remember credentials”.';
+                    if ($error) {
+                        $msg .= ' Refresh also failed: '.$error;
+                    }
 
-                return [
-                    'collection' => $collection,
-                    'config' => $config,
-                    'error' => $msg,
-                ];
+                    return [
+                        'collection' => $collection,
+                        'config' => $config,
+                        'error' => $msg,
+                    ];
+                }
+            } else {
+                $username = trim((string)($oauth['username'] ?? ''));
+                $password = trim((string)($oauth['password'] ?? ''));
+                if ($username === '' || $password === '' || $this->isPlaceholderSecret($password)) {
+                    $msg = 'OAuth password grant requires username/password on auth profile. Open the OAuth modal once and enable “Remember credentials”.';
+                    if ($error) {
+                        $msg .= ' Refresh also failed: '.$error;
+                    }
+
+                    return [
+                        'collection' => $collection,
+                        'config' => $config,
+                        'error' => $msg,
+                    ];
+                }
             }
 
             if ($tokenUrl === '') {
@@ -351,9 +394,13 @@ final class OAuthTokenManager
                 ];
             }
 
+            $payload = $grantType === 'password'
+                ? $this->buildPasswordCredentialsPayload($oauth)
+                : $this->buildClientCredentialsPayload($oauth);
+
             $resp = $this->requestToken(
                 $tokenUrl,
-                $this->buildClientCredentialsPayload($oauth),
+                $payload,
                 $tokenUrl,
                 $refreshUrl,
             );
@@ -423,6 +470,41 @@ final class OAuthTokenManager
             'client_id' => (string)($oauth['clientId'] ?? ''),
             'client_secret' => (string)($oauth['clientSecret'] ?? ''),
         ];
+
+        $scope = trim((string)($oauth['scope'] ?? ''));
+        if ($scope !== '') {
+            $payload['scope'] = $scope;
+        }
+
+        $audience = trim((string)($oauth['audience'] ?? ''));
+        if ($audience !== '') {
+            $payload['audience'] = $audience;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param array<string,mixed> $oauth
+     * @return array<string,string>
+     */
+    private function buildPasswordCredentialsPayload(array $oauth): array
+    {
+        $payload = [
+            'grant_type' => 'password',
+            'username' => (string)($oauth['username'] ?? ''),
+            'password' => (string)($oauth['password'] ?? ''),
+        ];
+
+        $clientId = trim((string)($oauth['clientId'] ?? ''));
+        $clientSecret = trim((string)($oauth['clientSecret'] ?? ''));
+
+        if ($clientId !== '') {
+            $payload['client_id'] = $clientId;
+        }
+        if ($clientSecret !== '' && !$this->isPlaceholderSecret($clientSecret)) {
+            $payload['client_secret'] = $clientSecret;
+        }
 
         $scope = trim((string)($oauth['scope'] ?? ''));
         if ($scope !== '') {

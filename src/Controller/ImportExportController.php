@@ -29,7 +29,7 @@ final class ImportExportController extends AbstractController
             // OAuth secrets stored on auth profiles (v5+).
             $oauth = $profile['oauth'] ?? null;
             if (is_array($oauth)) {
-                foreach (['clientSecret' => 'OAuth client_secret', 'refreshToken' => 'OAuth refresh_token', 'accessToken' => 'OAuth access_token'] as $field => $label) {
+                foreach (['clientSecret' => 'OAuth client_secret', 'refreshToken' => 'OAuth refresh_token', 'accessToken' => 'OAuth access_token', 'password' => 'OAuth password'] as $field => $label) {
                     $value = (string)($oauth[$field] ?? '');
                     if ($value === '') {
                         continue;
@@ -229,7 +229,7 @@ final class ImportExportController extends AbstractController
             // OAuth secrets stored on auth profiles (v5+).
             $oauth = $profile['oauth'] ?? null;
             if (is_array($oauth)) {
-                foreach (['clientSecret', 'refreshToken', 'accessToken'] as $field) {
+                foreach (['clientSecret', 'refreshToken', 'accessToken', 'password'] as $field) {
                     $value = (string)($oauth[$field] ?? '');
                     if ($value === '') {
                         continue;

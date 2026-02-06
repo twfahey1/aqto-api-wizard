@@ -345,8 +345,12 @@ final class AuthProfileController extends AbstractController
         $clientSecret = trim($clientSecret);
         $scope = trim((string)$request->request->get('oauthScope', ''));
         $audience = trim((string)$request->request->get('oauthAudience', ''));
+        $grantType = trim((string)$request->request->get('oauthGrantType', ''));
+        $username = trim((string)$request->request->get('oauthUsername', ''));
+        $password = (string)$request->request->get('oauthPassword', '');
+        $password = trim($password);
 
-        if ($tokenUrl === '' && $refreshUrl === '' && $clientId === '' && $clientSecret === '' && $scope === '' && $audience === '') {
+        if ($tokenUrl === '' && $refreshUrl === '' && $clientId === '' && $clientSecret === '' && $scope === '' && $audience === '' && $grantType === '' && $username === '' && $password === '') {
             return null;
         }
 
@@ -368,6 +372,15 @@ final class AuthProfileController extends AbstractController
         }
         if ($audience !== '') {
             $oauth['audience'] = $audience;
+        }
+        if ($grantType !== '') {
+            $oauth['grantType'] = $grantType;
+        }
+        if ($username !== '') {
+            $oauth['username'] = $username;
+        }
+        if ($password !== '') {
+            $oauth['password'] = $password;
         }
 
         return $oauth;

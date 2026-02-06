@@ -39,6 +39,9 @@ final class OAuthController extends AbstractController
             'clientSecret' => '',
             'scope' => '',
             'audience' => '',
+            'grantType' => 'client_credentials',
+            'username' => '',
+            'password' => '',
             'refreshToken' => $refreshToken,
             'tokenUrl' => $tokenUrl,
             'refreshUrl' => $refreshUrl,
@@ -56,6 +59,9 @@ final class OAuthController extends AbstractController
                     $oauthDefaults['clientSecret'] = (string)($oauth['clientSecret'] ?? '');
                     $oauthDefaults['scope'] = (string)($oauth['scope'] ?? '');
                     $oauthDefaults['audience'] = (string)($oauth['audience'] ?? '');
+                    $oauthDefaults['grantType'] = (string)($oauth['grantType'] ?? $oauthDefaults['grantType']);
+                    $oauthDefaults['username'] = (string)($oauth['username'] ?? '');
+                    $oauthDefaults['password'] = (string)($oauth['password'] ?? '');
                     $oauthDefaults['refreshToken'] = $oauthDefaults['refreshToken'] !== '' ? $oauthDefaults['refreshToken'] : (string)($oauth['refreshToken'] ?? '');
                     $oauthDefaults['tokenUrl'] = $oauthDefaults['tokenUrl'] !== '' ? $oauthDefaults['tokenUrl'] : (string)($oauth['tokenUrl'] ?? '');
                     $oauthDefaults['refreshUrl'] = $oauthDefaults['refreshUrl'] !== '' ? $oauthDefaults['refreshUrl'] : (string)($oauth['refreshUrl'] ?? '');
@@ -255,6 +261,15 @@ final class OAuthController extends AbstractController
                         }
                         if (isset($posted['audience'])) {
                             $oauth['audience'] = (string)$posted['audience'];
+                        }
+                        if (isset($posted['grant_type'])) {
+                            $oauth['grantType'] = (string)$posted['grant_type'];
+                        }
+                        if (isset($posted['username'])) {
+                            $oauth['username'] = (string)$posted['username'];
+                        }
+                        if (isset($posted['password'])) {
+                            $oauth['password'] = (string)$posted['password'];
                         }
                     }
 

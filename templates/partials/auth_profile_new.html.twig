@@ -105,9 +105,16 @@
             <div class="mt-2 text-xs text-slate-600">These are appended to the request query string for any config using this auth profile. Config-level query params override auth profile params when names match.</div>
         </div>
 
-        <div class="rounded border bg-slate-50 p-3">
+        <div class="rounded border bg-slate-50 p-3" x-data="{ grantType: 'client_credentials' }">
             <div class="text-sm font-medium">OAuth (optional)</div>
             <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-medium">Grant type</label>
+                    <select name="oauthGrantType" class="mt-1 w-full rounded border px-3 py-2 text-sm" x-model="grantType">
+                        <option value="client_credentials">client_credentials</option>
+                        <option value="password">password</option>
+                    </select>
+                </div>
                 <div>
                     <label class="block text-sm font-medium">Token URL</label>
                     <input name="oauthTokenUrl" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="https://example.com/oauth/token">
@@ -123,6 +130,14 @@
                 <div>
                     <label class="block text-sm font-medium">Client Secret</label>
                     <input type="password" name="oauthClientSecret" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="client_secret">
+                </div>
+                <div x-show="grantType === 'password'" x-cloak>
+                    <label class="block text-sm font-medium">Username</label>
+                    <input name="oauthUsername" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="username">
+                </div>
+                <div x-show="grantType === 'password'" x-cloak>
+                    <label class="block text-sm font-medium">Password</label>
+                    <input type="password" name="oauthPassword" class="mt-1 w-full rounded border px-3 py-2 text-sm" placeholder="password">
                 </div>
                 <div>
                     <label class="block text-sm font-medium">Scope</label>
