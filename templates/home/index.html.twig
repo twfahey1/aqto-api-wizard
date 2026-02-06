@@ -27,18 +27,19 @@
     <main class="mx-auto max-w-7xl px-4 py-6">
         <div class="grid grid-cols-1 lg:grid-cols-[minmax(360px,420px)_1fr] gap-6 items-start">
             <aside class="space-y-6">
-                <div class="bg-white rounded-lg border shadow-sm" x-data="window.aqtoCollapsible('configs', true)" x-init="init()">
+                <div class="bg-white rounded-lg border shadow-sm" data-aqto-panel="configs" x-data="window.aqtoCollapsible('configs', true)" x-init="init()">
                     <div class="p-4 border-b flex items-center justify-between gap-3">
                         <div class="flex items-center gap-2 min-w-0">
                             <button
                                 type="button"
                                 class="p-1 -ml-1 rounded hover:bg-slate-100"
+                                data-aqto-panel-toggle
                                 @click="toggle()"
                                 :aria-expanded="open.toString()"
                                 aria-controls="configsPanel"
                                 title="Toggle Configs"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 transition-transform" :class="open ? 'rotate-180' : ''">
+                                <svg data-aqto-panel-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 transition-transform" :class="open ? 'rotate-180' : ''">
                                     <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
                                 </svg>
                             </button>
@@ -135,7 +136,7 @@
                             </div>
                         </div>
                     </div>
-                    <div id="configsPanel" class="p-4" x-show="open" x-transition x-cloak>
+                    <div id="configsPanel" data-aqto-panel-body class="p-4" x-show="open" x-transition x-cloak>
                         <div class="mb-4">
                             <form
                                 class="flex items-center gap-2"
@@ -156,18 +157,19 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg border shadow-sm" x-data="window.aqtoCollapsible('auth-profiles', true)" x-init="init()">
+                <div class="bg-white rounded-lg border shadow-sm" data-aqto-panel="auth-profiles" x-data="window.aqtoCollapsible('auth-profiles', true)" x-init="init()">
                     <div class="p-4 border-b flex items-center justify-between gap-3">
                         <div class="flex items-center gap-2 min-w-0">
                             <button
                                 type="button"
                                 class="p-1 -ml-1 rounded hover:bg-slate-100"
+                                data-aqto-panel-toggle
                                 @click="toggle()"
                                 :aria-expanded="open.toString()"
                                 aria-controls="authProfilesPanel"
                                 title="Toggle Auth Profiles"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 transition-transform" :class="open ? 'rotate-180' : ''">
+                                <svg data-aqto-panel-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 transition-transform" :class="open ? 'rotate-180' : ''">
                                     <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
                                 </svg>
                             </button>
@@ -205,7 +207,7 @@
                             </div>
                         </div>
                     </div>
-                    <div id="authProfilesPanel" class="p-4" x-show="open" x-transition x-cloak>
+                    <div id="authProfilesPanel" data-aqto-panel-body class="p-4" x-show="open" x-transition x-cloak>
                         <div id="authProfileList">
                             {{ include('partials/auth_profile_list.html.twig', { collection: collection }) }}
                         </div>
@@ -214,18 +216,19 @@
             </aside>
 
             <section class="lg:sticky lg:top-6 self-start">
-                <div class="bg-white rounded-lg border shadow-sm" x-data="window.aqtoCollapsible('response', true)" x-init="init()">
+                <div class="bg-white rounded-lg border shadow-sm" data-aqto-panel="response" x-data="window.aqtoCollapsible('response', true)" x-init="init()">
                     <div class="p-4 border-b flex items-center justify-between gap-3">
                         <div class="flex items-center gap-2 min-w-0">
                             <button
                                 type="button"
                                 class="p-1 -ml-1 rounded hover:bg-slate-100"
+                                data-aqto-panel-toggle
                                 @click="toggle()"
                                 :aria-expanded="open.toString()"
                                 aria-controls="responsePanel"
                                 title="Toggle Response"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 transition-transform" :class="open ? 'rotate-180' : ''">
+                                <svg data-aqto-panel-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 transition-transform" :class="open ? 'rotate-180' : ''">
                                     <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
                                 </svg>
                             </button>
@@ -233,7 +236,7 @@
                         </div>
                         <div class="text-sm text-slate-600">Select a config and run it.</div>
                     </div>
-                    <div id="responsePanel" class="p-4" x-show="open" x-transition x-cloak>
+                    <div id="responsePanel" data-aqto-panel-body class="p-4" x-show="open" x-transition x-cloak>
                         <div id="executeResult" class="mt-2">
                             <pre class="text-xs overflow-auto"><code class="language-json">{ "ready": true }</code></pre>
                         </div>

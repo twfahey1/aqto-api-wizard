@@ -10,29 +10,161 @@ function panelStorageKey(id) {
   return `aqto.ui.panel.${id}.open`;
 }
 
+function restorePanelStates(root) {
+  const container = root || document;
+  const panels = Array.from(container.querySelectorAll('[data-aqto-panel]'));
+  if (panels.length === 0) return;
+
+  for (const el of panels) {
+    const id = el?.dataset?.aqtoPanel;
+    if (!id) continue;
+    const stored = getPanelState(id);
+    if (stored === null) {
+      if (window.aqtoDebugPanels) {
+        // eslint-disable-next-line no-console
+        console.log('[aqto][panel] no stored state', { id });
+      }
+      continue;
+    }
+
+    let applied = false;
+
+    if (el.__x && el.__x.$data && Object.prototype.hasOwnProperty.call(el.__x.$data, 'open')) {
+      el.__x.$data.open = Boolean(stored);
+      applied = true;
+    } else if (Array.isArray(el._x_dataStack) && el._x_dataStack.length > 0) {
+      const stackTop = el._x_dataStack[0];
+      if (stackTop && Object.prototype.hasOwnProperty.call(stackTop, 'open')) {
+        stackTop.open = Boolean(stored);
+        applied = true;
+      }
+    } else if (window.Alpine && typeof window.Alpine.$data === 'function') {
+      try {
+        const data = window.Alpine.$data(el);
+        if (data && Object.prototype.hasOwnProperty.call(data, 'open')) {
+          data.open = Boolean(stored);
+          applied = true;
+        }
+      } catch (e) {
+        if (window.aqtoDebugPanels) {
+          // eslint-disable-next-line no-console
+          console.log('[aqto][panel] $data error', { id, error: e?.message || String(e) });
+        }
+      }
+    }
+
+    const bodyEl = el.querySelector('[data-aqto-panel-body]');
+    if (bodyEl) {
+      bodyEl.style.display = stored ? '' : 'none';
+    }
+
+    const iconEl = el.querySelector('[data-aqto-panel-icon]');
+    if (iconEl) {
+      iconEl.classList.toggle('rotate-180', Boolean(stored));
+    }
+
+    const toggleEl = el.querySelector('[data-aqto-panel-toggle]');
+    if (toggleEl) {
+      toggleEl.setAttribute('aria-expanded', stored ? 'true' : 'false');
+    }
+
+    if (window.aqtoDebugPanels) {
+      // eslint-disable-next-line no-console
+      console.log(applied ? '[aqto][panel] restore' : '[aqto][panel] missing alpine data', {
+        id,
+        open: Boolean(stored),
+        hasX: Boolean(el.__x),
+        hasData: Boolean(el.__x && el.__x.$data),
+        hasDataStack: Array.isArray(el._x_dataStack),
+        dataStackLength: Array.isArray(el._x_dataStack) ? el._x_dataStack.length : 0,
+        hasAlpine: Boolean(window.Alpine),
+        hasDollarData: Boolean(window.Alpine && typeof window.Alpine.$data === 'function'),
+        alpineVersion: window.Alpine?.version || 'unknown',
+        hasXDataAttr: el.hasAttribute('x-data'),
+        hasBodyEl: Boolean(bodyEl),
+        hasIconEl: Boolean(iconEl),
+        hasToggleEl: Boolean(toggleEl),
+      });
+    }
+  }
+}
+
+function schedulePanelRestore(root) {
+  const container = root || document;
+  if (window.aqtoDebugPanels) {
+    // eslint-disable-next-line no-console
+    console.log('[aqto][panel] schedule restore', { container });
+  }
+  if (window.Alpine && typeof window.Alpine.nextTick === 'function') {
+    window.Alpine.nextTick(() => restorePanelStates(container));
+  } else if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(() => restorePanelStates(container));
+  } else {
+    setTimeout(() => restorePanelStates(container), 0);
+  }
+  setTimeout(() => restorePanelStates(container), 50);
+  setTimeout(() => restorePanelStates(container), 250);
+}
+
+function getPanelState(id) {
+  if (!id) return null;
+  if (!window.aqtoPanelState) window.aqtoPanelState = {};
+  if (Object.prototype.hasOwnProperty.call(window.aqtoPanelState, id)) {
+    return window.aqtoPanelState[id];
+  }
+
+  const key = panelStorageKey(id);
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return null;
+    if (raw === '1' || raw === 'true') return true;
+    if (raw === '0' || raw === 'false') return false;
+  } catch {
+    // ignore storage failures
+  }
+
+  return null;
+}
+
+function setPanelState(id, value) {
+  if (!id) return;
+  if (!window.aqtoPanelState) window.aqtoPanelState = {};
+  window.aqtoPanelState[id] = Boolean(value);
+
+  const key = panelStorageKey(id);
+  if (!key) return;
+  try {
+    localStorage.setItem(key, window.aqtoPanelState[id] ? '1' : '0');
+  } catch {
+    // ignore storage failures
+  }
+}
+
 window.aqtoCollapsible = function aqtoCollapsible(id, defaultOpen = true) {
   return {
     open: Boolean(defaultOpen),
     init() {
-      const key = panelStorageKey(id);
-      if (!key) return;
-      try {
-        const raw = localStorage.getItem(key);
-        if (raw === null) return;
-        if (raw === '1' || raw === 'true') this.open = true;
-        if (raw === '0' || raw === 'false') this.open = false;
-      } catch {
-        // ignore storage failures
+      const stored = getPanelState(id);
+      if (stored === null) {
+        if (window.aqtoDebugPanels) {
+          // eslint-disable-next-line no-console
+          console.log('[aqto][panel] init default', { id, open: this.open });
+        }
+        return;
+      }
+      this.open = Boolean(stored);
+      if (window.aqtoDebugPanels) {
+        // eslint-disable-next-line no-console
+        console.log('[aqto][panel] init stored', { id, open: this.open });
       }
     },
     setOpen(next) {
       this.open = Boolean(next);
-      const key = panelStorageKey(id);
-      if (!key) return;
-      try {
-        localStorage.setItem(key, this.open ? '1' : '0');
-      } catch {
-        // ignore storage failures
+      setPanelState(id, this.open);
+      if (window.aqtoDebugPanels) {
+        // eslint-disable-next-line no-console
+        console.log('[aqto][panel] set', { id, open: this.open });
       }
     },
     toggle() {
@@ -98,6 +230,10 @@ Alpine.start();
 function applyHtmlToConfigList(html) {
   const el = document.getElementById('configList');
   if (!el) return;
+  if (window.aqtoDebugPanels) {
+    // eslint-disable-next-line no-console
+    console.log('[aqto][panel] applyHtmlToConfigList');
+  }
   el.innerHTML = html;
 
   // Re-init HTMX bindings on newly inserted content
@@ -109,6 +245,11 @@ function applyHtmlToConfigList(html) {
   if (window.Alpine && typeof window.Alpine.initTree === 'function') {
     window.Alpine.initTree(el);
   }
+  if (window.aqtoDebugPanels) {
+    // eslint-disable-next-line no-console
+    console.log('[aqto][panel] initTree(configList)');
+  }
+  schedulePanelRestore(el);
 
   // Re-init syntax highlighting
   if (window.Prism && typeof window.Prism.highlightAllUnder === 'function') {
@@ -245,10 +386,19 @@ window.aqtoFolderDelete = async function aqtoFolderDelete(id) {
 // Re-run syntax highlighting after HTMX swaps.
 document.body.addEventListener('htmx:afterSwap', (event) => {
   const target = event?.detail?.target || document.body;
+  if (window.aqtoDebugPanels) {
+    // eslint-disable-next-line no-console
+    console.log('[aqto][panel] htmx:afterSwap', { target });
+  }
 
   if (window.Alpine && typeof window.Alpine.initTree === 'function') {
     window.Alpine.initTree(target);
   }
+  if (window.aqtoDebugPanels) {
+    // eslint-disable-next-line no-console
+    console.log('[aqto][panel] initTree(afterSwap)');
+  }
+  schedulePanelRestore(target);
 
   if (window.Prism && typeof window.Prism.highlightAllUnder === 'function') {
     window.Prism.highlightAllUnder(document.body);
@@ -257,6 +407,15 @@ document.body.addEventListener('htmx:afterSwap', (event) => {
   if (typeof window.aqtoInitConfigTreeDragDrop === 'function') {
     window.aqtoInitConfigTreeDragDrop(target);
   }
+});
+
+document.body.addEventListener('htmx:afterSettle', (event) => {
+  const target = event?.detail?.target || document.body;
+  if (window.aqtoDebugPanels) {
+    // eslint-disable-next-line no-console
+    console.log('[aqto][panel] htmx:afterSettle', { target });
+  }
+  schedulePanelRestore(target);
 });
 
 // By default, HTMX will not swap content on non-2xx responses.

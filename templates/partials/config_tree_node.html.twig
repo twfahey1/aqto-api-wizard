@@ -4,6 +4,7 @@
         data-aqto-item="1"
         data-type="folder"
         data-id="{{ node.id }}"
+        data-aqto-panel="folder.{{ node.id }}"
         x-data="window.aqtoCollapsible('folder.{{ node.id }}', true)"
         x-init="init()"
     >
@@ -18,12 +19,13 @@
                 <button
                     type="button"
                     class="p-1 -ml-1 rounded hover:bg-slate-100"
+                    data-aqto-panel-toggle
                     @click.stop="toggle()"
                     :aria-expanded="open.toString()"
                     aria-controls="folderPanel_{{ node.id }}"
                     title="Toggle folder"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 transition-transform" :class="open ? 'rotate-180' : ''">
+                    <svg data-aqto-panel-icon xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 transition-transform" :class="open ? 'rotate-180' : ''">
                         <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
                     </svg>
                 </button>
@@ -56,7 +58,7 @@
             </div>
         </div>
 
-        <div id="folderPanel_{{ node.id }}" class="mt-2" x-show="open" x-transition x-cloak>
+        <div id="folderPanel_{{ node.id }}" data-aqto-panel-body class="mt-2" x-show="open" x-transition x-cloak>
             <ul class="space-y-2 ml-3 pl-3 border-l" data-aqto-sortable="1" data-folder-id="{{ node.id }}">
                 {% for child in node.children %}
                     {{ include('partials/config_tree_node.html.twig', { node: child, collection: collection }) }}
